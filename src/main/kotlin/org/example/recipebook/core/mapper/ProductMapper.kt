@@ -40,5 +40,5 @@ fun Product.updateWithNull(productDto: ProductDto) = apply {
     composition = productDto.composition
     category = productDto.category
     cookingRequirement = productDto.cookingRequirement
-    flags = this.flags
+    flags = productDto.flags
 }

@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.example.recipebook.core.database.entity.Product
 import org.example.recipebook.api.dto.ProductDto
-import org.example.recipebook.core.database.entity.ProductFilter
 import org.example.recipebook.core.database.repository.ProductRepository
 import org.example.recipebook.core.mapper.toEntity
 import org.example.recipebook.core.mapper.toProductDto
