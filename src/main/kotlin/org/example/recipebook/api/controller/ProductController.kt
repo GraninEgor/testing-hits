@@ -7,6 +7,7 @@ import org.example.recipebook.core.service.ProductService
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.web.PagedModel
+import org.springframework.http.MediaType
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.ModelAttribute
@@ -17,6 +18,8 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.RequestPart
+import org.springframework.web.multipart.MultipartFile
 import java.io.IOException
 
 @RestController
@@ -34,8 +37,13 @@ class ProductController(private val productService: ProductService) {
     @GetMapping("/by-ids")
     fun getMany(@RequestParam ids: List<Long>): List<ProductDto> = productService.getMany(ids)
 
-    @PostMapping
-    fun create(@RequestBody @Valid dto: ProductDto): ProductDto = productService.create(dto)
+    @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    fun create(
+        @RequestPart("data") dto: ProductDto,
+        @RequestPart("file", required = false) file: MultipartFile?
+    ): ProductDto {
+        return productService.create(dto, file)
+    }
 
     @PatchMapping("/{id}")
     @Throws(IOException::class)

@@ -2,6 +2,7 @@ package org.example.recipebook.api.controller
 
 import com.fasterxml.jackson.databind.JsonNode
 import jakarta.validation.Valid
+import org.example.recipebook.api.dto.DishDto
 import org.example.recipebook.core.filter.DishFilter
 import org.example.recipebook.core.service.DishService
 import org.springdoc.core.annotations.ParameterObject

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import org.example.recipebook.core.database.entity.Product
 import org.example.recipebook.api.dto.ProductDto
 import org.example.recipebook.core.database.repository.ProductRepository
+import org.example.recipebook.core.filter.ProductFilter
 import org.example.recipebook.core.mapper.toEntity
 import org.example.recipebook.core.mapper.toProductDto
 import org.example.recipebook.core.mapper.updateWithNull
@@ -13,9 +14,13 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.domain.Specification
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
+import org.springframework.web.multipart.MultipartFile
 import org.springframework.web.server.ResponseStatusException
 import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.Paths
 import java.util.Optional
+import java.util.UUID
 
 @Service
 class ProductServiceImpl(private val productRepository: ProductRepository, private val objectMapper: ObjectMapper) :
@@ -36,8 +41,25 @@ class ProductServiceImpl(private val productRepository: ProductRepository, priva
         return products.map(Product::toProductDto)
     }
 
-    override fun create(dto: ProductDto): ProductDto {
-        val product: Product = dto.toEntity()
+    override fun create(dto: ProductDto, file: MultipartFile?): ProductDto {
+
+        val photoUrl = file?.let {
+            val uploadDir = "uploads/"
+            val fileName = UUID.randomUUID().toString() + "_" + it.originalFilename
+
+            val path = Paths.get(uploadDir + fileName)
+            Files.createDirectories(path.parent)
+            it.transferTo(path)
+
+            "/uploads/$fileName"
+        }
+
+        val product: Product = dto.toEntity().apply {
+            if (photoUrl != null) {
+                this.photos = listOf(photoUrl)
+            }
+        }
+
         val resultProduct: Product = productRepository.save(product)
         return resultProduct.toProductDto()
     }

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Книга рецептов</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="container">
+    <h1>Книга рецептов</h1>
+
+    <div class="tabs">
+        <button onclick="showTab('products')">Продукты</button>
+        <button onclick="showTab('dishes')">Блюда</button>
+    </div>
+
+    <!-- ================= ПРОДУКТЫ ================= -->
+    <section id="products-section">
+
+        <h2>Продукты</h2>
+
+        <div class="filters">
+            <input id="product-search" placeholder="Поиск">
+            <button onclick="loadProducts()">Найти</button>
+        </div>
+
+        <form id="product-form">
+
+            <input id="p-name" placeholder="Название" required>
+            <input id="p-calories" type="number" placeholder="Ккал" required>
+            <input id="p-proteins" type="number" placeholder="Белки" required>
+            <input id="p-fats" type="number" placeholder="Жиры" required>
+            <input id="p-carbs" type="number" placeholder="Углеводы" required>
+
+            <select id="p-category">
+                <option value="MEAT">Мясо</option>
+                <option value="VEGETABLES">Овощи</option>
+                <option value="GREENS">Зелень</option>
+            </select>
+
+            <select id="p-cooking">
+                <option value="READY_TO_EAT">Готовый</option>
+                <option value="SEMI_FINISHED">Полуфабрикат</option>
+                <option value="REQUIRES_COOKING">Требует готовки</option>
+            </select>
+
+            <input type="file" id="p-photo">
+
+            <img id="preview" class="preview hidden">
+
+            <button type="button" onclick="createProduct()">Создать продукт</button>
+        </form>
+
+        <div id="products-list"></div>
+
+    </section>
+
+    <!-- ================= БЛЮДА ================= -->
+    <section id="dishes-section" class="hidden">
+        <h2>Блюда</h2>
+
+        <form id="dish-form">
+            <input id="d-name" placeholder="Название блюда" required>
+            <input id="d-portion" type="number" placeholder="Размер порции (г)" required>
+
+            <div id="ingredients"></div>
+            <button type="button" onclick="addIngredientRow()">Добавить ингредиент</button>
+
+            <div class="macros">
+                <input id="d-calories" placeholder="Ккал">
+                <input id="d-proteins" placeholder="Белки">
+                <input id="d-fats" placeholder="Жиры">
+                <input id="d-carbs" placeholder="Углеводы">
+            </div>
+
+            <button type="button" onclick="calculateDishMacros()">Рассчитать</button>
+            <button type="button" onclick="createDish()">Создать блюдо</button>
+        </form>
+
+        <div id="dishes-list"></div>
+    </section>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

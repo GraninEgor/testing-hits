@@ -1,0 +1,59 @@
+body {
+    font-family: Arial, sans-serif;
+    background: #f4f6f8;
+    margin: 0;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1000px;
+    margin: auto;
+}
+
+h1, h2 {
+    margin-bottom: 15px;
+}
+
+.tabs button {
+    padding: 10px 15px;
+    margin-right: 10px;
+    cursor: pointer;
+}
+
+form {
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+input, select, button {
+    margin: 5px;
+    padding: 8px;
+}
+
+button {
+    cursor: pointer;
+}
+
+.card {
+    background: white;
+    padding: 12px;
+    margin-bottom: 10px;
+    border-radius: 10px;
+}
+
+.card img {
+    border-radius: 6px;
+    margin-bottom: 5px;
+}
+
+.preview {
+    display: block;
+    max-width: 120px;
+    margin-top: 10px;
+}
+
+.hidden {
+    display: none;
+}
