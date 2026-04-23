@@ -123,11 +123,54 @@
                 <input id="d-carbs" placeholder="Углеводы">
             </div>
 
+            <!-- 🔽 ФИЛЬТРЫ БЛЮД -->
+            <div>
+                <!-- 🔎 ПОИСК БЛЮД -->
+                <div class="dish-search-block">
+                    <input id="dish-search" placeholder="Поиск блюда...">
+
+                    <button type="button" onclick="loadDishes()">
+                        Найти
+                    </button>
+                </div>
+
+                <select id="dish-category" onchange="loadDishes()">
+                    <option value="">Все категории</option>
+                    <option value="DESSERT">Десерт</option>
+                    <option value="FIRST">Первое</option>
+                    <option value="SECOND">Второе</option>
+                    <option value="DRINK">Напиток</option>
+                    <option value="SALAD">Салат</option>
+                    <option value="SOUP">Суп</option>
+                    <option value="SNACK">Перекус</option>
+                </select>
+
+                <label><input type="checkbox" id="f-vegan" onchange="loadDishes()"> Веган</label>
+                <label><input type="checkbox" id="f-gluten" onchange="loadDishes()"> Без глютена</label>
+                <label><input type="checkbox" id="f-sugar" onchange="loadDishes()"> Без сахара</label>
+            </div>
+
+
             <input type="file" id="d-photo">
             <img id="d-preview" class="preview hidden">
 
             <button type="button" onclick="calculateDishMacros()">Рассчитать</button>
             <button type="button" onclick="createDish()">Создать блюдо</button>
+
+            <!-- FLAGS BLOCK (DISHE FORM) -->
+            <div class="flags">
+                <label>
+                    <input type="checkbox" class="d-flag" value="VEGAN"> Веган
+                </label>
+
+                <label>
+                    <input type="checkbox" class="d-flag" value="GLUTEN_FREE"> Без глютена
+                </label>
+
+                <label>
+                    <input type="checkbox" class="d-flag" value="SUGAR_FREE"> Без сахара
+                </label>
+            </div>
 
         </form>
 

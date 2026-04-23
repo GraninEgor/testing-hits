@@ -1,12 +1,16 @@
 const PRODUCTS_API = "/rest/admin-ui/products";
 const DISHES_API = "/rest/admin-ui/dishes";
 
+/* =========================
+   📍 ГЛОБАЛЬНОЕ СОСТОЯНИЕ
+========================= */
+
 let allProducts = [];
 let editingProductId = null;
 let existingPhoto = null;
 
 /* =========================
-   ТАБЫ
+   📍 ТАБЫ
 ========================= */
 
 function showTab(tab) {
@@ -17,21 +21,33 @@ function showTab(tab) {
     document.getElementById(tab + "-section").classList.remove("hidden");
 }
 
-function extractProducts(data) {
-    // обычный массив
-    if (Array.isArray(data)) return data;
+/* =========================
+   📍 PRODUCTS - УТИЛИТЫ
+========================= */
 
-    // Spring Page
+function extractProducts(data) {
+    if (Array.isArray(data)) return data;
     if (Array.isArray(data.content)) return data.content;
 
-    // Spring HATEOAS (PagedModel)
     if (data._embedded) {
-        const firstKey = Object.keys(data._embedded)[0];
-        return data._embedded[firstKey] || [];
+        const key = Object.keys(data._embedded)[0];
+        return data._embedded[key] || [];
     }
 
     return [];
 }
+
+function getProductFlags() {
+    const flags = [];
+    document.querySelectorAll(".p-flag:checked").forEach(cb => {
+        flags.push(cb.value);
+    });
+    return flags;
+}
+
+/* =========================
+   📍 EDIT PRODUCT
+========================= */
 
 async function startEditProduct(id) {
     const res = await fetch(`${PRODUCTS_API}/${id}`);
@@ -48,17 +64,14 @@ async function startEditProduct(id) {
     document.getElementById("p-category").value = p.category ?? "";
     document.getElementById("p-cooking").value = p.cookingRequirement ?? "";
 
-    // сброс
     document.querySelectorAll(".p-flag").forEach(cb => cb.checked = false);
 
-// установка
     p.flags?.forEach(flag => {
         const el = document.querySelector(`.p-flag[value="${flag}"]`);
         if (el) el.checked = true;
     });
 
     const preview = document.getElementById("preview");
-
 
     if (existingPhoto) {
         preview.src = existingPhoto;
@@ -68,16 +81,9 @@ async function startEditProduct(id) {
     }
 }
 
-function validateBJU(dto) {
-    const sum = dto.proteins + dto.fats + dto.carbohydrates;
-
-    if (sum > 100) {
-        alert("Сумма БЖУ на 100г не может превышать 100");
-        return false;
-    }
-
-    return true;
-}
+/* =========================
+   📍 SAVE PRODUCT
+========================= */
 
 async function saveProduct() {
     const fileInput = document.getElementById("p-photo");
@@ -88,7 +94,6 @@ async function saveProduct() {
         proteins: +document.getElementById("p-proteins").value,
         fats: +document.getElementById("p-fats").value,
         carbohydrates: +document.getElementById("p-carbs").value,
-        composition: null,
         category: document.getElementById("p-category").value,
         cookingRequirement: document.getElementById("p-cooking").value,
         flags: getProductFlags(),
@@ -96,17 +101,13 @@ async function saveProduct() {
     };
 
     const formData = new FormData();
-    formData.append(
-        "data",
-        new Blob([JSON.stringify(dto)], { type: "application/json" })
-    );
+    formData.append("data", new Blob([JSON.stringify(dto)], { type: "application/json" }));
 
     if (fileInput.files.length > 0) {
         formData.append("file", fileInput.files[0]);
     }
 
     if (editingProductId) {
-        // UPDATE
         await fetch(`${PRODUCTS_API}/${editingProductId}`, {
             method: "PATCH",
             body: formData
@@ -114,9 +115,7 @@ async function saveProduct() {
 
         editingProductId = null;
         existingPhoto = null;
-
     } else {
-        // CREATE 👇 ВОТ ЭТОГО У ТЕБЯ НЕ БЫЛО
         await fetch(PRODUCTS_API, {
             method: "POST",
             body: formData
@@ -128,21 +127,12 @@ async function saveProduct() {
 
     loadProducts();
 }
-async function uploadPhoto(productId, file) {
-    const formData = new FormData();
-    formData.append("file", file);
 
-    await fetch(`${PRODUCTS_API}/${productId}/photo`, {
-        method: "PATCH",
-        body: formData
-    });
-}
 /* =========================
-   PRODUCTS
+   📍 LOAD PRODUCTS
 ========================= */
 
 async function loadProducts() {
-
     const params = new URLSearchParams();
 
     const search = document.getElementById("product-search").value;
@@ -159,8 +149,8 @@ async function loadProducts() {
         params.append("sort", `${field},${dir}`);
     }
 
-    const response = await fetch(`${PRODUCTS_API}?${params.toString()}`);
-    const data = await response.json();
+    const res = await fetch(`${PRODUCTS_API}?${params}`);
+    const data = await res.json();
 
     allProducts = extractProducts(data);
     renderProducts(allProducts);
@@ -171,8 +161,6 @@ function renderProducts(products) {
     list.innerHTML = "";
 
     products.forEach(p => {
-        if (!p?.id) return;
-
         const card = document.createElement("div");
         card.className = "card";
 
@@ -188,66 +176,26 @@ function renderProducts(products) {
         list.appendChild(card);
     });
 }
+
 /* =========================
-   PREVIEW IMAGE
+   📍 PREVIEW IMAGE
 ========================= */
 
 document.addEventListener("DOMContentLoaded", () => {
     const photoInput = document.getElementById("p-photo");
 
-    if (photoInput) {
-        photoInput.addEventListener("change", e => {
-            const file = e.target.files[0];
-            if (!file) return;
+    photoInput?.addEventListener("change", e => {
+        const file = e.target.files[0];
+        if (!file) return;
 
-            const preview = document.getElementById("preview");
-            preview.src = URL.createObjectURL(file);
-            preview.classList.remove("hidden");
-        });
-    }
+        const preview = document.getElementById("preview");
+        preview.src = URL.createObjectURL(file);
+        preview.classList.remove("hidden");
+    });
 });
 
 /* =========================
-   CREATE PRODUCT (multipart)
-========================= */
-
-async function createProduct() {
-    const fileInput = document.getElementById("p-photo");
-
-    const dto = {
-        name: document.getElementById("p-name").value,
-        photos: [],
-        calories: +document.getElementById("p-calories").value,
-        proteins: +document.getElementById("p-proteins").value,
-        fats: +document.getElementById("p-fats").value,
-        carbohydrates: +document.getElementById("p-carbs").value,
-        composition: null,
-        category: document.getElementById("p-category").value,
-        cookingRequirement: document.getElementById("p-cooking").value,
-        flags: []
-    };
-
-    const formData = new FormData();
-
-    formData.append(
-        "data",
-        new Blob([JSON.stringify(dto)], { type: "application/json" })
-    );
-
-    if (fileInput.files.length) {
-        formData.append("file", fileInput.files[0]);
-    }
-
-    await fetch(PRODUCTS_API, {
-        method: "POST",
-        body: formData
-    });
-
-    loadProducts();
-}
-
-/* =========================
-   INGREDIENTS
+   📍 INGREDIENTS
 ========================= */
 
 function addIngredientRow() {
@@ -264,41 +212,33 @@ function addIngredientRow() {
 }
 
 function populateIngredientSelects() {
-    const selects = document.querySelectorAll(".ingredient-product");
-
-    selects.forEach(select => {
+    document.querySelectorAll(".ingredient-product").forEach(select => {
         select.innerHTML = "";
 
-        allProducts.forEach(product => {
-            select.innerHTML += `<option value="${product.id}">${product.name}</option>`;
+        allProducts.forEach(p => {
+            select.innerHTML += `<option value="${p.id}">${p.name}</option>`;
         });
     });
 }
 
 /* =========================
-   CALCULATE MACROS
+   📍 DISH MACROS
 ========================= */
 
 function calculateDishMacros() {
-    let calories = 0;
-    let proteins = 0;
-    let fats = 0;
-    let carbs = 0;
+    let calories = 0, proteins = 0, fats = 0, carbs = 0;
 
-    const rows = document.querySelectorAll(".ingredient-row");
-
-    rows.forEach(row => {
-        const productId = row.querySelector(".ingredient-product").value;
+    document.querySelectorAll(".ingredient-row").forEach(row => {
+        const id = row.querySelector(".ingredient-product").value;
         const amount = +row.querySelector(".ingredient-amount").value;
 
-        const product = allProducts.find(p => p.id == productId);
+        const product = allProducts.find(p => p.id == id);
+        if (!product) return;
 
-        if (product) {
-            calories += product.calories * amount / 100;
-            proteins += product.proteins * amount / 100;
-            fats += product.fats * amount / 100;
-            carbs += product.carbohydrates * amount / 100;
-        }
+        calories += product.calories * amount / 100;
+        proteins += product.proteins * amount / 100;
+        fats += product.fats * amount / 100;
+        carbs += product.carbohydrates * amount / 100;
     });
 
     document.getElementById("d-calories").value = calories.toFixed(1);
@@ -308,21 +248,55 @@ function calculateDishMacros() {
 }
 
 /* =========================
-   CREATE DISH (JSON FIXED)
+   📍 DISH FLAGS LOGIC
 ========================= */
 
-document.addEventListener("DOMContentLoaded", () => {
-    const input = document.getElementById("d-photo");
+function updateDishFlagsAvailability() {
 
-    input.addEventListener("change", e => {
-        const file = e.target.files[0];
-        if (!file) return;
+    let canVegan = true;
+    let canGluten = true;
+    let canSugar = true;
 
-        const preview = document.getElementById("d-preview");
-        preview.src = URL.createObjectURL(file);
-        preview.classList.remove("hidden");
+    document.querySelectorAll(".ingredient-row").forEach(row => {
+        const id = row.querySelector(".ingredient-product").value;
+        const product = allProducts.find(p => p.id == id);
+
+        if (!product) return;
+
+        if (!product.flags?.includes("VEGAN")) canVegan = false;
+        if (!product.flags?.includes("GLUTEN_FREE")) canGluten = false;
+        if (!product.flags?.includes("SUGAR_FREE")) canSugar = false;
     });
-});
+
+    setDishFlagState("VEGAN", canVegan);
+    setDishFlagState("GLUTEN_FREE", canGluten);
+    setDishFlagState("SUGAR_FREE", canSugar);
+}
+
+function setDishFlagState(flag, enabled) {
+    const cb = document.querySelector(`.d-flag[value="${flag}"]`);
+    if (!cb) return;
+
+    cb.disabled = !enabled;
+
+    if (!enabled) cb.checked = false;
+}
+
+function getDishFlagsFromUI() {
+    const flags = [];
+
+    document.querySelectorAll(".d-flag").forEach(cb => {
+        if (cb.checked && !cb.disabled) {
+            flags.push(cb.value);
+        }
+    });
+
+    return flags;
+}
+
+/* =========================
+   📍 CREATE DISH
+========================= */
 
 async function createDish() {
     const fileInput = document.getElementById("d-photo");
@@ -347,18 +321,14 @@ async function createDish() {
         ingredients,
         portionSize: +document.getElementById("d-portion").value,
         category: document.getElementById("d-category")?.value || "SECOND",
-        flags: getDishFlags(),
+        flags: getDishFlagsFromUI(),
         photos: []
     };
 
     const formData = new FormData();
+    formData.append("data", new Blob([JSON.stringify(dto)], { type: "application/json" }));
 
-    formData.append(
-        "data",
-        new Blob([JSON.stringify(dto)], { type: "application/json" })
-    );
-
-    if (fileInput.files.length > 0) {
+    if (fileInput.files.length) {
         formData.append("file", fileInput.files[0]);
     }
 
@@ -373,175 +343,73 @@ async function createDish() {
     document.getElementById("d-preview").classList.add("hidden");
 }
 
-function getProductFlags() {
-    const flags = [];
-
-    document.querySelectorAll(".p-flag:checked").forEach(cb => {
-        flags.push(cb.value);
-    });
-
-    return flags;
-}
 /* =========================
-   LOAD DISHES
+   📍 LOAD DISHES + FILTERS
 ========================= */
 
 async function loadDishes() {
 
     const params = new URLSearchParams();
 
-    const search = document.getElementById("dish-search")?.value;
+    const name = document.getElementById("dish-search")?.value;
     const category = document.getElementById("dish-category")?.value;
 
-    if (search) params.append("search", search);
+    if (name) params.append("name", name);   // 🔥 ВАЖНО
     if (category) params.append("category", category);
 
     const res = await fetch(`${DISHES_API}?${params.toString()}`);
     const data = await res.json();
 
-    const dishes = data.content || data;
+    let dishes = data.content || data;
 
+    const vegan = document.getElementById("f-vegan")?.checked;
+    const gluten = document.getElementById("f-gluten")?.checked;
+    const sugar = document.getElementById("f-sugar")?.checked;
+
+    if (vegan) dishes = dishes.filter(d => d.flags?.includes("VEGAN"));
+    if (gluten) dishes = dishes.filter(d => d.flags?.includes("GLUTEN_FREE"));
+    if (sugar) dishes = dishes.filter(d => d.flags?.includes("SUGAR_FREE"));
+
+    renderDishes(dishes);
+}
+
+
+function renderDishes(dishes) {
     const list = document.getElementById("dishes-list");
     list.innerHTML = "";
 
     dishes.forEach(d => {
         const card = document.createElement("div");
-
         card.className = "card";
+
         card.innerHTML = `
             ${d.photos?.[0] ? `<img src="${d.photos[0]}" width="100">` : ""}
             <b>${d.name}</b><br>
             Ккал: ${d.calories ?? "-"}<br>
-           `;
+            Флаги: ${d.flags?.join(", ") || "-"}
+        `;
 
         list.appendChild(card);
     });
 }
 
-async function deleteDish(id) {
-    await fetch(`${DISHES_API}/${id}`, {
-        method: "DELETE"
-    });
-
-    loadDishes();
-}
-
-
-async function openDish(id) {
-    const res = await fetch(`${DISHES_API}/${id}`);
-    const d = await res.json();
-
-    alert(`
-${d.name}
-
-Ккал: ${d.calories}
-Б: ${d.proteins}
-Ж: ${d.fats}
-У: ${d.carbohydrates}
-
-Порция: ${d.portionSize}
-`);
-}
-
-
-async function openProduct(id) {
-    if (!id) return;
-
-    const res = await fetch(`${PRODUCTS_API}/${id}`);
-    const p = await res.json();
-
-    document.getElementById("products-section").classList.add("hidden");
-    document.getElementById("dishes-section").classList.add("hidden");
-    document.getElementById("product-detail-section").classList.remove("hidden");
-
-    document.getElementById("product-detail").innerHTML = `
-        <div class="card large">
-            ${p.photos?.[0] ? `<img src="${p.photos[0]}" width="250">` : ""}
-
-            <h2>${p.name ?? "-"}</h2>
-
-            <p><b>Калории:</b> ${p.calories ?? "-"}</p>
-            <p><b>Белки:</b> ${p.proteins ?? "-"}</p>
-            <p><b>Жиры:</b> ${p.fats ?? "-"}</p>
-            <p><b>Углеводы:</b> ${p.carbohydrates ?? "-"}</p>
-
-            <p><b>Категория:</b> ${p.category ?? "-"}</p>
-            <p><b>Готовка:</b> ${p.cookingRequirement ?? "-"}</p>
-
-            <p><b>Состав:</b> ${p.composition ?? "-"}</p>
-
-            <p><b>Флаги:</b> ${p.flags?.join(", ") || "-"}</p>
-        </div>
-    `;
-}
-
-function closeProductView() {
-    document.getElementById("product-detail-section").classList.add("hidden");
-    document.getElementById("products-section").classList.remove("hidden");
-}
-
-function parseDishName(name) {
-    const macros = {
-        "!десерт": "DESSERT",
-        "!первое": "FIRST",
-        "!второе": "SECOND",
-        "!напиток": "DRINK",
-        "!салат": "SALAD",
-        "!суп": "SOUP",
-        "!перекус": "SNACK"
-    };
-
-    for (const key in macros) {
-        if (name.toLowerCase().includes(key)) {
-            return {
-                cleanName: name.replace(key, "").trim(),
-                category: macros[key]
-            };
-        }
-    }
-
-    return { cleanName: name, category: null };
-}
-
-function getDishFlags() {
-    const rows = document.querySelectorAll(".ingredient-row");
-
-    let vegan = true;
-    let glutenFree = true;
-    let sugarFree = true;
-
-    rows.forEach(row => {
-        const productId = row.querySelector(".ingredient-product").value;
-        const product = allProducts.find(p => p.id == productId);
-
-        if (!product) return;
-
-        if (!product.flags?.includes("VEGAN")) vegan = false;
-        if (!product.flags?.includes("GLUTEN_FREE")) glutenFree = false;
-        if (!product.flags?.includes("SUGAR_FREE")) sugarFree = false;
-    });
-
-    const flags = [];
-
-    if (vegan) flags.push("VEGAN");
-    if (glutenFree) flags.push("GLUTEN_FREE");
-    if (sugarFree) flags.push("SUGAR_FREE");
-
-    return flags;
-}
+/* =========================
+   📍 GLOBAL INPUT HANDLER (ОЧИЩЕН)
+========================= */
 
 document.addEventListener("input", e => {
-    if (e.target.classList.contains("ingredient-amount") ||
-        e.target.classList.contains("ingredient-product")) {
+
+    if (
+        e.target.classList.contains("ingredient-amount") ||
+        e.target.classList.contains("ingredient-product")
+    ) {
         calculateDishMacros();
+        updateDishFlagsAvailability();
     }
 });
 
-
-
-
 /* =========================
-   INIT
+   📍 INIT
 ========================= */
 
 loadProducts();
