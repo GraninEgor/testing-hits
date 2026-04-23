@@ -14,6 +14,22 @@ function showTab(tab) {
     document.getElementById(tab + "-section").classList.remove("hidden");
 }
 
+function extractProducts(data) {
+    // обычный массив
+    if (Array.isArray(data)) return data;
+
+    // Spring Page
+    if (Array.isArray(data.content)) return data.content;
+
+    // Spring HATEOAS (PagedModel)
+    if (data._embedded) {
+        const firstKey = Object.keys(data._embedded)[0];
+        return data._embedded[firstKey] || [];
+    }
+
+    return [];
+}
+
 /* =========================
    PRODUCTS
 ========================= */
@@ -22,7 +38,8 @@ async function loadProducts() {
     const response = await fetch(PRODUCTS_API);
     const data = await response.json();
 
-    allProducts = data.content || data;
+    allProducts = extractProducts(data);
+
     renderProducts(allProducts);
 }
 
@@ -30,13 +47,18 @@ function renderProducts(products) {
     const list = document.getElementById("products-list");
     list.innerHTML = "";
 
+    if (!Array.isArray(products)) {
+        console.error("products is not array:", products);
+        return;
+    }
+
     products.forEach(p => {
         list.innerHTML += `
             <div class="card">
                 ${p.photos?.length ? `<img src="${p.photos[0]}" width="100">` : ""}
                 <b>${p.name}</b><br>
-                Ккал: ${p.calories}<br>
-                Б: ${p.proteins} Ж: ${p.fats} У: ${p.carbohydrates}
+                Ккал: ${p.calories ?? "-"}<br>
+                Б: ${p.proteins ?? "-"} Ж: ${p.fats ?? "-"} У: ${p.carbohydrates ?? "-"}
             </div>
         `;
     });
