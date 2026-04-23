@@ -35,11 +35,27 @@ function extractProducts(data) {
 ========================= */
 
 async function loadProducts() {
-    const response = await fetch(PRODUCTS_API);
+
+    const params = new URLSearchParams();
+
+    const search = document.getElementById("product-search").value;
+    const category = document.getElementById("filter-category").value;
+    const cooking = document.getElementById("filter-cooking").value;
+    const sort = document.getElementById("sort").value;
+
+    if (search) params.append("search", search);
+    if (category) params.append("category", category);
+    if (cooking) params.append("cookingRequirement", cooking);
+
+    if (sort) {
+        const [field, dir] = sort.split(",");
+        params.append("sort", `${field},${dir}`);
+    }
+
+    const response = await fetch(`${PRODUCTS_API}?${params.toString()}`);
     const data = await response.json();
 
     allProducts = extractProducts(data);
-
     renderProducts(allProducts);
 }
 

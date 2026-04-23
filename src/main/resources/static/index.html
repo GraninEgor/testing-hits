@@ -21,8 +21,33 @@
         <h2>Продукты</h2>
 
         <div class="filters">
-            <input id="product-search" placeholder="Поиск">
-            <button onclick="loadProducts()">Найти</button>
+            <select id="filter-category">
+                <option value="">Все категории</option>
+                <option value="MEAT">Мясо</option>
+                <option value="VEGETABLES">Овощи</option>
+                <option value="GREENS">Зелень</option>
+            </select>
+
+            <select id="filter-cooking">
+                <option value="">Любое</option>
+                <option value="READY_TO_EAT">Готовый</option>
+                <option value="SEMI_FINISHED">Полуфабрикат</option>
+                <option value="REQUIRES_COOKING">Требует готовки</option>
+            </select>
+
+            <input id="product-search" placeholder="Поиск...">
+
+            <select id="sort">
+                <option value="name,asc">Имя ↑</option>
+                <option value="name,desc">Имя ↓</option>
+                <option value="calories,asc">Ккал ↑</option>
+                <option value="calories,desc">Ккал ↓</option>
+                <option value="proteins,desc">Белки ↓</option>
+                <option value="fats,desc">Жиры ↓</option>
+                <option value="carbohydrates,desc">Углеводы ↓</option>
+            </select>
+
+            <button onclick="loadProducts()">Применить</button>
         </div>
 
         <form id="product-form">

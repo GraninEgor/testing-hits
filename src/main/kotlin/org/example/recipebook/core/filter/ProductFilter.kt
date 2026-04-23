@@ -6,6 +6,7 @@ import org.springframework.data.jpa.domain.Specification
 data class ProductFilter(
     val category: Category? = null,
     val name: String? = null,
+    val search: String? = null,
     val calories: Double? = null,
     val cookingRequirement: CookingRequirement? = null,
     val proteins: Double? = null,
@@ -32,6 +33,8 @@ data class ProductFilter(
             ?: Specification { _, _, _ -> null }
     }
 
+
+
     private fun categorySpec() = Specification<Product> { root, _, cb ->
         category?.let {
             cb.equal(root.get<Category>("category"), it)
@@ -39,11 +42,10 @@ data class ProductFilter(
     }
 
     private fun nameSpec() = Specification<Product> { root, _, cb ->
-        name?.takeIf { it.isNotBlank() }?.let {
-            cb.like(root.get("name"), "%$it%")
+        search?.takeIf { it.isNotBlank() }?.let {
+            cb.like(cb.lower(root.get("name")), "%${it.lowercase()}%")
         }
     }
-
     private fun caloriesSpec() = Specification<Product> { root, _, cb ->
         calories?.let {
             cb.equal(root.get<Double>("calories"), it)
