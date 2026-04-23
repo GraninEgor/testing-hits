@@ -63,6 +63,20 @@
             <input id="p-fats" type="number" placeholder="Жиры" required>
             <input id="p-carbs" type="number" placeholder="Углеводы" required>
 
+            <div class="flags">
+                <label>
+                    <input type="checkbox" value="VEGAN" class="p-flag"> Веган
+                </label>
+
+                <label>
+                    <input type="checkbox" value="GLUTEN_FREE" class="p-flag"> Без глютена
+                </label>
+
+                <label>
+                    <input type="checkbox" value="SUGAR_FREE" class="p-flag"> Без сахара
+                </label>
+            </div>
+
             <select id="p-category">
                 <option value="MEAT">Мясо</option>
                 <option value="VEGETABLES">Овощи</option>
@@ -79,7 +93,6 @@
 
             <img id="preview" class="preview hidden">
 
-            <!-- 🔥 одна кнопка и create и edit -->
             <button type="button" onclick="saveProduct()">Сохранить продукт</button>
 
         </form>

@@ -48,7 +48,17 @@ async function startEditProduct(id) {
     document.getElementById("p-category").value = p.category ?? "";
     document.getElementById("p-cooking").value = p.cookingRequirement ?? "";
 
+    // сброс
+    document.querySelectorAll(".p-flag").forEach(cb => cb.checked = false);
+
+// установка
+    p.flags?.forEach(flag => {
+        const el = document.querySelector(`.p-flag[value="${flag}"]`);
+        if (el) el.checked = true;
+    });
+
     const preview = document.getElementById("preview");
+
 
     if (existingPhoto) {
         preview.src = existingPhoto;
@@ -78,19 +88,12 @@ async function saveProduct() {
         proteins: +document.getElementById("p-proteins").value,
         fats: +document.getElementById("p-fats").value,
         carbohydrates: +document.getElementById("p-carbs").value,
+        composition: null,
         category: document.getElementById("p-category").value,
         cookingRequirement: document.getElementById("p-cooking").value,
-        composition: null,
-        flags: []
+        flags: getProductFlags(),
+        photos: []
     };
-
-    // 🔥 ВАЖНО: не теряем фото
-    dto.photos =
-        fileInput.files.length > 0
-            ? [] // сервер перезапишет через file
-            : (existingPhoto ? [existingPhoto] : []);
-
-    if (!validateBJU(dto)) return;
 
     const formData = new FormData();
     formData.append(
@@ -103,32 +106,28 @@ async function saveProduct() {
     }
 
     if (editingProductId) {
-
-        // 1. обновляем текст
+        // UPDATE
         await fetch(`${PRODUCTS_API}/${editingProductId}`, {
             method: "PATCH",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(dto)
+            body: formData
         });
-
-        // 2. если выбрано новое фото — обновляем отдельно
-        if (fileInput.files.length > 0) {
-            await uploadPhoto(editingProductId, fileInput.files[0]);
-        }
 
         editingProductId = null;
         existingPhoto = null;
-    }
 
+    } else {
+        // CREATE 👇 ВОТ ЭТОГО У ТЕБЯ НЕ БЫЛО
+        await fetch(PRODUCTS_API, {
+            method: "POST",
+            body: formData
+        });
+    }
 
     document.getElementById("product-form").reset();
     document.getElementById("preview").classList.add("hidden");
 
     loadProducts();
 }
-
 async function uploadPhoto(productId, file) {
     const formData = new FormData();
     formData.append("file", file);
@@ -365,6 +364,16 @@ async function createDish() {
     });
 
     loadDishes();
+}
+
+function getProductFlags() {
+    const flags = [];
+
+    document.querySelectorAll(".p-flag:checked").forEach(cb => {
+        flags.push(cb.value);
+    });
+
+    return flags;
 }
 /* =========================
    LOAD DISHES

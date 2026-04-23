@@ -7,19 +7,15 @@ import org.example.recipebook.core.database.entity.Category
 import org.example.recipebook.core.database.entity.CookingRequirement
 import org.example.recipebook.core.database.entity.FeatureFlag
 
-/**
- * DTO for [org.example.recipebook.core.database.entity.Product]
- */
-data class ProductDto(
-    val id: Long,
-    val name: String,
-    val photos: List<String>,
+data class ProductCreateDto(
+    @field:Size(min = 2) @field:NotBlank val name: String,
+    val photos: List<String> = emptyList(),
     val calories: Double,
     val proteins: Double,
     val fats: Double,
     val carbohydrates: Double,
     val composition: String?,
-    val category: Category,
-    val cookingRequirement: CookingRequirement,
-    val flags: Set<FeatureFlag>
+    @field:NotNull val category: Category,
+    @field:NotNull val cookingRequirement: CookingRequirement,
+    val flags: Set<FeatureFlag> = emptySet()
 )

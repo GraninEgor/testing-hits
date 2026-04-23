@@ -1,6 +1,7 @@
 package org.example.recipebook.api.controller
 import com.fasterxml.jackson.databind.JsonNode
 import jakarta.validation.Valid
+import org.example.recipebook.api.dto.ProductCreateDto
 import org.example.recipebook.api.dto.ProductDto
 import org.example.recipebook.core.filter.ProductFilter
 import org.example.recipebook.core.service.ProductService
@@ -39,7 +40,7 @@ class ProductController(private val productService: ProductService) {
 
     @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun create(
-        @RequestPart("data") dto: ProductDto,
+        @RequestPart("data") dto: ProductCreateDto,
         @RequestPart("file", required = false) file: MultipartFile?
     ): ProductDto {
         return productService.create(dto, file)

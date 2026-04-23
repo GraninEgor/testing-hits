@@ -2,6 +2,7 @@ package org.example.recipebook.core.service;
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.example.recipebook.api.dto.ProductCreateDto
 import org.example.recipebook.core.database.entity.Product
 import org.example.recipebook.api.dto.ProductDto
 import org.example.recipebook.core.database.repository.ProductRepository
@@ -41,7 +42,7 @@ class ProductServiceImpl(private val productRepository: ProductRepository, priva
         return products.map(Product::toProductDto)
     }
 
-    override fun create(dto: ProductDto, file: MultipartFile?): ProductDto {
+    override fun create(dto: ProductCreateDto, file: MultipartFile?): ProductDto {
 
         val photoUrl = file?.let {
             val uploadDir = "uploads/"

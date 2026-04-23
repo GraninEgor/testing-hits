@@ -1,6 +1,7 @@
 package org.example.recipebook.core.service
 
 import com.fasterxml.jackson.databind.JsonNode
+import org.example.recipebook.api.dto.ProductCreateDto
 import org.example.recipebook.api.dto.ProductDto
 import org.example.recipebook.core.filter.ProductFilter
 import org.springframework.data.domain.Page
@@ -12,7 +13,7 @@ interface ProductService {
     fun getAll(filter: ProductFilter, pageable: Pageable): Page<ProductDto>
     fun getOne(id: Long): ProductDto
     fun getMany(ids: List<Long>): List<ProductDto>
-    fun create(dto: ProductDto, file: MultipartFile?): ProductDto
+    fun create(dto: ProductCreateDto, file: MultipartFile?): ProductDto
 
     @Throws(IOException::class)
     fun patch( id: Long,  patchNode: JsonNode): ProductDto

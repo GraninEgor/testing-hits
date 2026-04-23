@@ -1,5 +1,6 @@
 package org.example.recipebook.core.mapper
 
+import org.example.recipebook.api.dto.ProductCreateDto
 import org.example.recipebook.core.database.entity.FeatureFlag
 import org.example.recipebook.core.database.entity.Product
 import org.example.recipebook.api.dto.ProductDto
@@ -19,6 +20,19 @@ fun Product.toProductDto() = ProductDto(
 )
 
 fun ProductDto.toEntity() = Product(
+    name = this.name,
+    photos = this.photos,
+    calories = this.calories,
+    proteins = this.proteins,
+    fats = this.fats,
+    carbohydrates = this.carbohydrates,
+    composition = this.composition,
+    category = this.category,
+    cookingRequirement = this.cookingRequirement,
+    flags = this.flags
+)
+
+fun ProductCreateDto.toEntity() = Product(
     name = this.name,
     photos = this.photos,
     calories = this.calories,
