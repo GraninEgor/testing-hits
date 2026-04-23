@@ -6,13 +6,14 @@ import org.example.recipebook.api.dto.DishDto
 import org.example.recipebook.core.filter.DishFilter
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.web.multipart.MultipartFile
 import java.io.IOException
 
 interface DishService {
     fun getAll(filter: DishFilter, pageable: Pageable): Page<DishDto>
     fun getOne(id: Long): DishDto
     fun getMany(ids: List<Long>): List<DishDto>
-    fun create(dto: DishCreateDto): DishDto
+    fun create(dto: DishCreateDto,  file: MultipartFile?): DishDto
 
     @Throws(IOException::class)
     fun patch(id: Long, patchNode: JsonNode): DishDto

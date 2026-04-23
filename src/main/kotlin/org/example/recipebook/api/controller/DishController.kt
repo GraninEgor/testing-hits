@@ -19,7 +19,9 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.RequestPart
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.multipart.MultipartFile
 import java.io.IOException
 
 @RestController
@@ -40,8 +42,13 @@ class DishController(private val dishService: DishService) {
     @GetMapping("/by-ids")
     fun getMany(@RequestParam ids: List<Long>): List<DishDto> = dishService.getMany(ids)
 
-    @PostMapping
-    fun create(@RequestBody @Valid dto: DishCreateDto): DishDto = dishService.create(dto)
+    @PostMapping(consumes = ["multipart/form-data"])
+    fun create(
+        @RequestPart("data") @Valid dto: DishCreateDto,
+        @RequestPart("file", required = false) file: MultipartFile?
+    ): DishDto {
+        return dishService.create(dto, file)
+    }
 
     @PatchMapping("/{id}")
     @Throws(IOException::class)

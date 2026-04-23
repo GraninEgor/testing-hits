@@ -311,10 +311,21 @@ function calculateDishMacros() {
    CREATE DISH (JSON FIXED)
 ========================= */
 
-async function createDish() {
+document.addEventListener("DOMContentLoaded", () => {
+    const input = document.getElementById("d-photo");
 
-    const rawName = document.getElementById("d-name").value;
-    const parsed = parseDishName(rawName);
+    input.addEventListener("change", e => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const preview = document.getElementById("d-preview");
+        preview.src = URL.createObjectURL(file);
+        preview.classList.remove("hidden");
+    });
+});
+
+async function createDish() {
+    const fileInput = document.getElementById("d-photo");
 
     const ingredients = [];
 
@@ -323,47 +334,43 @@ async function createDish() {
         const amount = +row.querySelector(".ingredient-amount").value;
 
         if (productId && amount > 0) {
-            ingredients.push({
-                productId: productId,
-                amount: amount
-            });
+            ingredients.push({ productId, amount });
         }
     });
 
-    if (ingredients.length === 0) {
-        alert("Добавь хотя бы 1 ингредиент");
-        return;
-    }
-
-    const manualCategory = document.getElementById("d-category")?.value;
-
     const dto = {
-        name: parsed.cleanName,
-        photos: [],
+        name: document.getElementById("d-name").value,
         calories: +document.getElementById("d-calories").value,
         proteins: +document.getElementById("d-proteins").value,
         fats: +document.getElementById("d-fats").value,
         carbohydrates: +document.getElementById("d-carbs").value,
-
-        // ✅ ВАЖНО: теперь отправляем ingredients
-        ingredients: ingredients,
-
+        ingredients,
         portionSize: +document.getElementById("d-portion").value,
-        category: manualCategory || parsed.category || "SECOND",
-        flags: getDishFlags()
+        category: document.getElementById("d-category")?.value || "SECOND",
+        flags: getDishFlags(),
+        photos: []
     };
 
-    if (!validateBJU(dto)) return;
+    const formData = new FormData();
+
+    formData.append(
+        "data",
+        new Blob([JSON.stringify(dto)], { type: "application/json" })
+    );
+
+    if (fileInput.files.length > 0) {
+        formData.append("file", fileInput.files[0]);
+    }
 
     await fetch(DISHES_API, {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify(dto)
+        body: formData
     });
 
     loadDishes();
+
+    document.getElementById("dish-form").reset();
+    document.getElementById("d-preview").classList.add("hidden");
 }
 
 function getProductFlags() {
@@ -402,13 +409,10 @@ async function loadDishes() {
 
         card.className = "card";
         card.innerHTML = `
+            ${d.photos?.[0] ? `<img src="${d.photos[0]}" width="100">` : ""}
             <b>${d.name}</b><br>
             Ккал: ${d.calories ?? "-"}<br>
-
-            <button onclick="openDish(${d.id})">Открыть</button>
-            <button onclick="editDish(${d.id})">Редактировать</button>
-            <button onclick="deleteDish(${d.id})">Удалить</button>
-        `;
+           `;
 
         list.appendChild(card);
     });

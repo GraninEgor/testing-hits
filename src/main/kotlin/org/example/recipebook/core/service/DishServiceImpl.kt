@@ -17,9 +17,13 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.domain.Specification
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
+import org.springframework.web.multipart.MultipartFile
 import org.springframework.web.server.ResponseStatusException
 import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.Paths
 import java.util.Optional
+import java.util.UUID
 
 @Service
 class DishServiceImpl(
@@ -44,10 +48,26 @@ class DishServiceImpl(
         return dishes.map(Dish::toDishDto)
     }
 
-    override fun create(dto: DishCreateDto): DishDto {
-        val dish: Dish = dto.toEntity()
-        val ingredients = dto.ingredients.map { ing ->
+    override fun create(dto: DishCreateDto, file: MultipartFile?): DishDto {
 
+        val photoUrl = file?.let {
+            val uploadDir = "uploads/"
+            val fileName = UUID.randomUUID().toString() + "_" + it.originalFilename
+
+            val path = Paths.get(uploadDir + fileName)
+            Files.createDirectories(path.parent)
+            it.transferTo(path)
+
+            "/uploads/$fileName"
+        }
+
+        val dish = dto.toEntity().apply {
+            if (photoUrl != null) {
+                this.photos = listOf(photoUrl)
+            }
+        }
+
+        val ingredients = dto.ingredients.map { ing ->
             val product = productRepository.findById(ing.productId)
                 .orElseThrow()
 
@@ -59,8 +79,10 @@ class DishServiceImpl(
         }
 
         dish.ingredients = ingredients
-        val resultDish: Dish = dishRepository.save(dish)
-        return resultDish.toDishDto()
+
+        val saved = dishRepository.save(dish)
+
+        return saved.toDishDto()
     }
 
     @Throws(IOException::class)
