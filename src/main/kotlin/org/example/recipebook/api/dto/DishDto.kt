@@ -11,13 +11,14 @@ import java.time.LocalDateTime
  * DTO for [org.example.recipebook.core.database.entity.Dish]
  */
 data class DishDto(
+    val id: Long,
     @field:Size(min = 2) @field:NotBlank val name: String,
     @field:Size(max = 5) val photos: List<String>,
     val calories: Double,
     val proteins: Double,
     val fats: Double,
     val carbohydrates: Double,
-    val ingredientIds: MutableList<Long>,
+    val ingredients: List<DishIngredientDto>,
     val portionSize: Double,
     @field:NotNull val category: DishCategory,
     val flags: Set<FeatureFlag>,

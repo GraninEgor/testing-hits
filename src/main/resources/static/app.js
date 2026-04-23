@@ -387,10 +387,68 @@ function renderDishes(dishes) {
             <b>${d.name}</b><br>
             Ккал: ${d.calories ?? "-"}<br>
             Флаги: ${d.flags?.join(", ") || "-"}
+        
+            <button onclick="openDish(${d.id})">Открыть</button>
         `;
-
         list.appendChild(card);
     });
+}
+
+async function openDish(id) {
+
+    const res = await fetch(`${DISHES_API}/${id}`);
+    const d = await res.json();
+
+    document.getElementById("dishes-section").classList.add("hidden");
+    document.getElementById("dish-detail-section").classList.remove("hidden");
+
+    let ingredientsHtml = "";
+
+    if (d.ingredients?.length) {
+        ingredientsHtml = "<h3>Состав:</h3><ul>";
+
+        d.ingredients.forEach(i => {
+            const product = allProducts.find(p => p.id === i.productId);
+
+            ingredientsHtml += `
+                <li>
+                    ${product?.name ?? "Удалённый продукт"}
+                    — ${i.amount} г
+                </li>
+            `;
+        });
+
+        ingredientsHtml += "</ul>";
+    } else {
+        ingredientsHtml = "<p>Состав не указан</p>";
+    }
+
+    document.getElementById("dish-detail").innerHTML = `
+        <div class="card large">
+
+            ${d.photos?.[0] ? `<img src="${d.photos[0]}" width="250">` : ""}
+
+            <h2>${d.name}</h2>
+
+            <p><b>Калории:</b> ${d.calories}</p>
+            <p><b>Б:</b> ${d.proteins}</p>
+            <p><b>Ж:</b> ${d.fats}</p>
+            <p><b>У:</b> ${d.carbohydrates}</p>
+
+            <p><b>Порция:</b> ${d.portionSize} г</p>
+
+            <p><b>Категория:</b> ${d.category}</p>
+
+            <p><b>Флаги:</b> ${d.flags?.join(", ") || "-"}</p>
+
+            ${ingredientsHtml}
+        </div>
+    `;
+}
+
+function closeDishView() {
+    document.getElementById("dish-detail-section").classList.add("hidden");
+    document.getElementById("dishes-section").classList.remove("hidden");
 }
 
 /* =========================

@@ -2,18 +2,28 @@ package org.example.recipebook.core.mapper
 
 import org.example.recipebook.api.dto.DishCreateDto
 import org.example.recipebook.api.dto.DishDto
+import org.example.recipebook.api.dto.DishIngredientDto
 import org.example.recipebook.core.database.entity.Dish
 import org.example.recipebook.core.database.entity.DishIngredient
 import org.example.recipebook.core.database.entity.FeatureFlag
 
 fun Dish.toDishDto() = DishDto(
+    id = this.id,
+
     name = this.name,
     photos = this.photos,
     calories = this.calories,
     proteins = this.proteins,
     fats = this.fats,
     carbohydrates = this.carbohydrates,
-    ingredientIds = ingredients.mapNotNull { it.id }.toMutableList(),
+
+    ingredients = this.ingredients.map {
+        DishIngredientDto(
+            productId = it.product.id,
+            amount = it.amount
+        )
+    },
+
     portionSize = this.portionSize,
     category = this.category,
     flags = this.flags,
