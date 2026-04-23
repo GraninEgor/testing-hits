@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import org.example.recipebook.api.dto.ProductCreateDto
 import org.example.recipebook.core.database.entity.Product
 import org.example.recipebook.api.dto.ProductDto
+import org.example.recipebook.core.database.repository.DishRepository
 import org.example.recipebook.core.database.repository.ProductRepository
 import org.example.recipebook.core.filter.ProductFilter
 import org.example.recipebook.core.mapper.toEntity
@@ -24,7 +25,10 @@ import java.util.Optional
 import java.util.UUID
 
 @Service
-class ProductServiceImpl(private val productRepository: ProductRepository, private val objectMapper: ObjectMapper) :
+class ProductServiceImpl(
+    private val productRepository: ProductRepository,
+    private val objectMapper: ObjectMapper,
+    private val dishRepository: DishRepository) :
     ProductService {
     override fun getAll(filter: ProductFilter, pageable: Pageable): Page<ProductDto> {
         val spec: Specification<Product> = filter.toSpecification()
@@ -103,11 +107,26 @@ class ProductServiceImpl(private val productRepository: ProductRepository, priva
     }
 
     override fun delete(id: Long): ProductDto? {
-        val product: Product? = productRepository.findById(id).orElse(null)
-        if (product != null) {
-            productRepository.delete(product)
+
+        val product = productRepository.findById(id).orElse(null)
+            ?: return null
+
+        val usedInDish = dishRepository.existsByIngredientsProductId(id)
+
+        if (usedInDish) {
+            val dishes = dishRepository.findAll()
+                .filter { dish ->
+                    dish.ingredients.any { it.product.id == id }
+                }
+                .map { it.name }
+
+            throw IllegalStateException(
+                "Нельзя удалить продукт. Используется в блюдах: ${dishes.joinToString(", ")}"
+            )
         }
-        return product?.toProductDto()
+
+        productRepository.delete(product)
+        return product.toProductDto()
     }
 
     override fun deleteMany(ids: List<Long>) = productRepository.deleteAllById(ids)

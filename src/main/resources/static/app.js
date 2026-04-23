@@ -172,11 +172,23 @@ function renderProducts(products) {
 
             <button onclick="openProduct(${p.id})">Открыть</button>
             <button onclick="startEditProduct(${p.id})">Редактировать</button>
+            <button onclick="deleteProduct(${p.id})">Удалить</button>
         `;
 
         list.appendChild(card);
     });
 }
+
+async function deleteDish(id) {
+    if (!confirm("Удалить блюдо?")) return;
+
+    await fetch(`${DISHES_API}/${id}`, {
+        method: "DELETE"
+    });
+
+    loadDishes();
+}
+
 
 /* =========================
    📍 PREVIEW IMAGE
@@ -442,6 +454,7 @@ function renderDishes(dishes) {
         
             <button onclick="openDish(${d.id})">Открыть</button>
             <button onclick="editDish(${d.id})">Редактировать</button>
+            <button onclick="deleteDish(${d.id})">Удалить</button>
 `;
         list.appendChild(card);
     });
@@ -478,6 +491,24 @@ function closeDishView() {
     document.getElementById("dish-detail-section").classList.add("hidden");
     document.getElementById("dishes-section").classList.remove("hidden");
 }
+
+async function deleteProduct(id) {
+    if (!confirm("Удалить продукт?")) return;
+
+    const res = await fetch(`${PRODUCTS_API}/${id}`, {
+        method: "DELETE"
+    });
+
+    if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "Ошибка удаления");
+        return;
+    }
+
+    loadProducts();
+}
+
+
 async function openDish(id) {
     const res = await fetch(`${DISHES_API}/${id}`);
     const d = await res.json();

@@ -6,4 +6,5 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor
 import java.util.Optional
 
 interface DishRepository : JpaRepository<Dish, Long>, JpaSpecificationExecutor<Dish> {
+    fun existsByIngredientsProductId(productId: Long): Boolean
 }

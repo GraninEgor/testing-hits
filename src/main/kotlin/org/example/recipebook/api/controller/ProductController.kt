@@ -9,6 +9,7 @@ import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.web.PagedModel
 import org.springframework.http.MediaType
+import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.ModelAttribute
@@ -58,7 +59,14 @@ class ProductController(private val productService: ProductService) {
         productService.patchMany(ids, patchNode)
 
     @DeleteMapping("/{id}")
-    fun delete(@PathVariable id: Long): ProductDto? = productService.delete(id)
+    fun delete(@PathVariable id: Long): ResponseEntity<Any> {
+        return try {
+            productService.delete(id)
+            ResponseEntity.noContent().build()
+        } catch (e: IllegalStateException) {
+            ResponseEntity.badRequest().body(mapOf("error" to e.message))
+        }
+    }
 
     @DeleteMapping
     fun deleteMany(@RequestParam ids: List<Long>) = productService.deleteMany(ids)
