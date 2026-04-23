@@ -45,10 +45,11 @@ class ProductController(private val productService: ProductService) {
         return productService.create(dto, file)
     }
 
-    @PatchMapping("/{id}")
+    @PatchMapping("/{id}/photo", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     @Throws(IOException::class)
     fun patch(@PathVariable id: Long, @RequestBody patchNode: JsonNode): ProductDto =
         productService.patch(id, patchNode)
+
 
     @PatchMapping
     @Throws(IOException::class)

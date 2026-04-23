@@ -2,6 +2,7 @@ package org.example.recipebook.api.controller
 
 import com.fasterxml.jackson.databind.JsonNode
 import jakarta.validation.Valid
+import org.example.recipebook.api.dto.DishCreateDto
 import org.example.recipebook.api.dto.DishDto
 import org.example.recipebook.core.filter.DishFilter
 import org.example.recipebook.core.service.DishService
@@ -40,7 +41,7 @@ class DishController(private val dishService: DishService) {
     fun getMany(@RequestParam ids: List<Long>): List<DishDto> = dishService.getMany(ids)
 
     @PostMapping
-    fun create(@RequestBody @Valid dto: DishDto): DishDto = dishService.create(dto)
+    fun create(@RequestBody @Valid dto: DishCreateDto): DishDto = dishService.create(dto)
 
     @PatchMapping("/{id}")
     @Throws(IOException::class)

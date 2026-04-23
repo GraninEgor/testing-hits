@@ -103,6 +103,8 @@ async function saveProduct() {
     }
 
     if (editingProductId) {
+
+        // 1. обновляем текст
         await fetch(`${PRODUCTS_API}/${editingProductId}`, {
             method: "PATCH",
             headers: {
@@ -110,18 +112,31 @@ async function saveProduct() {
             },
             body: JSON.stringify(dto)
         });
+
+        // 2. если выбрано новое фото — обновляем отдельно
+        if (fileInput.files.length > 0) {
+            await uploadPhoto(editingProductId, fileInput.files[0]);
+        }
+
         editingProductId = null;
         existingPhoto = null;
-    } else {
-        await fetch(PRODUCTS_API, {
-            method: "POST",
-        });
     }
+
 
     document.getElementById("product-form").reset();
     document.getElementById("preview").classList.add("hidden");
 
     loadProducts();
+}
+
+async function uploadPhoto(productId, file) {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    await fetch(`${PRODUCTS_API}/${productId}/photo`, {
+        method: "PATCH",
+        body: formData
+    });
 }
 /* =========================
    PRODUCTS
@@ -299,24 +314,47 @@ function calculateDishMacros() {
 
 async function createDish() {
 
-    const ingredientIds = [];
+    const rawName = document.getElementById("d-name").value;
+    const parsed = parseDishName(rawName);
 
-    document.querySelectorAll(".ingredient-product").forEach(select => {
-        ingredientIds.push(+select.value);
+    const ingredients = [];
+
+    document.querySelectorAll(".ingredient-row").forEach(row => {
+        const productId = +row.querySelector(".ingredient-product").value;
+        const amount = +row.querySelector(".ingredient-amount").value;
+
+        if (productId && amount > 0) {
+            ingredients.push({
+                productId: productId,
+                amount: amount
+            });
+        }
     });
 
+    if (ingredients.length === 0) {
+        alert("Добавь хотя бы 1 ингредиент");
+        return;
+    }
+
+    const manualCategory = document.getElementById("d-category")?.value;
+
     const dto = {
-        name: document.getElementById("d-name").value,
+        name: parsed.cleanName,
         photos: [],
         calories: +document.getElementById("d-calories").value,
         proteins: +document.getElementById("d-proteins").value,
         fats: +document.getElementById("d-fats").value,
         carbohydrates: +document.getElementById("d-carbs").value,
-        ingredientIds,
+
+        // ✅ ВАЖНО: теперь отправляем ingredients
+        ingredients: ingredients,
+
         portionSize: +document.getElementById("d-portion").value,
-        category: "SECOND",
-        flags: []
+        category: manualCategory || parsed.category || "SECOND",
+        flags: getDishFlags()
     };
+
+    if (!validateBJU(dto)) return;
 
     await fetch(DISHES_API, {
         method: "POST",
@@ -328,32 +366,70 @@ async function createDish() {
 
     loadDishes();
 }
-
 /* =========================
    LOAD DISHES
 ========================= */
 
 async function loadDishes() {
-    const response = await fetch(DISHES_API);
-    const data = await response.json();
+
+    const params = new URLSearchParams();
+
+    const search = document.getElementById("dish-search")?.value;
+    const category = document.getElementById("dish-category")?.value;
+
+    if (search) params.append("search", search);
+    if (category) params.append("category", category);
+
+    const res = await fetch(`${DISHES_API}?${params.toString()}`);
+    const data = await res.json();
+
+    const dishes = data.content || data;
 
     const list = document.getElementById("dishes-list");
     list.innerHTML = "";
 
-    const dishes = data.content || data;
-
     dishes.forEach(d => {
         const card = document.createElement("div");
-        card.className = "card";
 
+        card.className = "card";
         card.innerHTML = `
             <b>${d.name}</b><br>
-            Ккал: ${d.calories ?? "-"}
+            Ккал: ${d.calories ?? "-"}<br>
+
+            <button onclick="openDish(${d.id})">Открыть</button>
+            <button onclick="editDish(${d.id})">Редактировать</button>
+            <button onclick="deleteDish(${d.id})">Удалить</button>
         `;
 
         list.appendChild(card);
     });
 }
+
+async function deleteDish(id) {
+    await fetch(`${DISHES_API}/${id}`, {
+        method: "DELETE"
+    });
+
+    loadDishes();
+}
+
+
+async function openDish(id) {
+    const res = await fetch(`${DISHES_API}/${id}`);
+    const d = await res.json();
+
+    alert(`
+${d.name}
+
+Ккал: ${d.calories}
+Б: ${d.proteins}
+Ж: ${d.fats}
+У: ${d.carbohydrates}
+
+Порция: ${d.portionSize}
+`);
+}
+
 
 async function openProduct(id) {
     if (!id) return;
@@ -390,6 +466,66 @@ function closeProductView() {
     document.getElementById("product-detail-section").classList.add("hidden");
     document.getElementById("products-section").classList.remove("hidden");
 }
+
+function parseDishName(name) {
+    const macros = {
+        "!десерт": "DESSERT",
+        "!первое": "FIRST",
+        "!второе": "SECOND",
+        "!напиток": "DRINK",
+        "!салат": "SALAD",
+        "!суп": "SOUP",
+        "!перекус": "SNACK"
+    };
+
+    for (const key in macros) {
+        if (name.toLowerCase().includes(key)) {
+            return {
+                cleanName: name.replace(key, "").trim(),
+                category: macros[key]
+            };
+        }
+    }
+
+    return { cleanName: name, category: null };
+}
+
+function getDishFlags() {
+    const rows = document.querySelectorAll(".ingredient-row");
+
+    let vegan = true;
+    let glutenFree = true;
+    let sugarFree = true;
+
+    rows.forEach(row => {
+        const productId = row.querySelector(".ingredient-product").value;
+        const product = allProducts.find(p => p.id == productId);
+
+        if (!product) return;
+
+        if (!product.flags?.includes("VEGAN")) vegan = false;
+        if (!product.flags?.includes("GLUTEN_FREE")) glutenFree = false;
+        if (!product.flags?.includes("SUGAR_FREE")) sugarFree = false;
+    });
+
+    const flags = [];
+
+    if (vegan) flags.push("VEGAN");
+    if (glutenFree) flags.push("GLUTEN_FREE");
+    if (sugarFree) flags.push("SUGAR_FREE");
+
+    return flags;
+}
+
+document.addEventListener("input", e => {
+    if (e.target.classList.contains("ingredient-amount") ||
+        e.target.classList.contains("ingredient-product")) {
+        calculateDishMacros();
+    }
+});
+
+
+
 
 /* =========================
    INIT

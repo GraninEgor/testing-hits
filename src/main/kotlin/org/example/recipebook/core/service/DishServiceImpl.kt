@@ -2,10 +2,13 @@ package org.example.recipebook.core.service;
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.example.recipebook.api.dto.DishCreateDto
 import org.example.recipebook.api.dto.DishDto
 import org.example.recipebook.core.database.entity.Dish
+import org.example.recipebook.core.database.entity.DishIngredient
 import org.example.recipebook.core.filter.DishFilter
 import org.example.recipebook.core.database.repository.DishRepository
+import org.example.recipebook.core.database.repository.ProductRepository
 import org.example.recipebook.core.mapper.toDishDto
 import org.example.recipebook.core.mapper.toEntity
 import org.example.recipebook.core.mapper.updateWithNull
@@ -19,7 +22,11 @@ import java.io.IOException
 import java.util.Optional
 
 @Service
-class DishServiceImpl(private val dishRepository: DishRepository, private val objectMapper: ObjectMapper) :
+class DishServiceImpl(
+    private val dishRepository: DishRepository,
+    private val objectMapper: ObjectMapper,
+    private val productRepository: ProductRepository
+) :
     DishService {
     override fun getAll(filter: DishFilter, pageable: Pageable): Page<DishDto> {
         val spec: Specification<Dish> = filter.toSpecification()
@@ -37,8 +44,21 @@ class DishServiceImpl(private val dishRepository: DishRepository, private val ob
         return dishes.map(Dish::toDishDto)
     }
 
-    override fun create(dto: DishDto): DishDto {
+    override fun create(dto: DishCreateDto): DishDto {
         val dish: Dish = dto.toEntity()
+        val ingredients = dto.ingredients.map { ing ->
+
+            val product = productRepository.findById(ing.productId)
+                .orElseThrow()
+
+            DishIngredient(
+                dish = dish,
+                product = product,
+                amount = ing.amount
+            )
+        }
+
+        dish.ingredients = ingredients
         val resultDish: Dish = dishRepository.save(dish)
         return resultDish.toDishDto()
     }

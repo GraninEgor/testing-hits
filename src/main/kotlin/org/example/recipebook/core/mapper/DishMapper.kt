@@ -1,5 +1,6 @@
 package org.example.recipebook.core.mapper
 
+import org.example.recipebook.api.dto.DishCreateDto
 import org.example.recipebook.api.dto.DishDto
 import org.example.recipebook.core.database.entity.Dish
 import org.example.recipebook.core.database.entity.DishIngredient
@@ -44,4 +45,19 @@ fun Dish.updateWithNull(dto: DishDto) = apply {
     portionSize = dto.portionSize
     category = dto.category
     flags = dto.flags
+}
+
+fun DishCreateDto.toEntity(): Dish {
+    val dish = Dish(
+        name = name,
+        photos = photos,
+        calories = calories,
+        proteins = proteins,
+        fats = fats,
+        carbohydrates = carbohydrates,
+        portionSize = portionSize,
+        category = category,
+        flags = flags
+    )
+    return dish
 }
