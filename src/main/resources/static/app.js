@@ -10,6 +10,7 @@ let allProducts = [];
 function showTab(tab) {
     document.getElementById("products-section").classList.add("hidden");
     document.getElementById("dishes-section").classList.add("hidden");
+    document.getElementById("product-detail-section").classList.add("hidden");
 
     document.getElementById(tab + "-section").classList.remove("hidden");
 }
@@ -63,20 +64,25 @@ function renderProducts(products) {
     const list = document.getElementById("products-list");
     list.innerHTML = "";
 
-    if (!Array.isArray(products)) {
-        console.error("products is not array:", products);
-        return;
-    }
+    if (!Array.isArray(products)) return;
 
     products.forEach(p => {
-        list.innerHTML += `
-            <div class="card">
-                ${p.photos?.length ? `<img src="${p.photos[0]}" width="100">` : ""}
-                <b>${p.name}</b><br>
-                Ккал: ${p.calories ?? "-"}<br>
-                Б: ${p.proteins ?? "-"} Ж: ${p.fats ?? "-"} У: ${p.carbohydrates ?? "-"}
-            </div>
+        if (!p?.id) return; // 🔥 защита
+
+        const card = document.createElement("div");
+        card.className = "card";
+        card.style.cursor = "pointer";
+
+        card.onclick = () => openProduct(p.id); // ✅ БЕЗ INLINE HTML
+
+        card.innerHTML = `
+            ${p.photos?.[0] ? `<img src="${p.photos[0]}" width="100">` : ""}
+            <b>${p.name ?? "-"}</b><br>
+            Ккал: ${p.calories ?? "-"}<br>
+            Б: ${p.proteins ?? "-"} Ж: ${p.fats ?? "-"} У: ${p.carbohydrates ?? "-"}
         `;
+
+        list.appendChild(card);
     });
 }
 
@@ -249,13 +255,52 @@ async function loadDishes() {
     const dishes = data.content || data;
 
     dishes.forEach(d => {
-        list.innerHTML += `
-            <div class="card">
-                <b>${d.name}</b><br>
-                Ккал: ${d.calories}
-            </div>
+        const card = document.createElement("div");
+        card.className = "card";
+
+        card.innerHTML = `
+            <b>${d.name}</b><br>
+            Ккал: ${d.calories ?? "-"}
         `;
+
+        list.appendChild(card);
     });
+}
+
+async function openProduct(id) {
+    if (!id) return;
+
+    const res = await fetch(`${PRODUCTS_API}/${id}`);
+    const p = await res.json();
+
+    document.getElementById("products-section").classList.add("hidden");
+    document.getElementById("dishes-section").classList.add("hidden");
+    document.getElementById("product-detail-section").classList.remove("hidden");
+
+    document.getElementById("product-detail").innerHTML = `
+        <div class="card large">
+            ${p.photos?.[0] ? `<img src="${p.photos[0]}" width="250">` : ""}
+
+            <h2>${p.name ?? "-"}</h2>
+
+            <p><b>Калории:</b> ${p.calories ?? "-"}</p>
+            <p><b>Белки:</b> ${p.proteins ?? "-"}</p>
+            <p><b>Жиры:</b> ${p.fats ?? "-"}</p>
+            <p><b>Углеводы:</b> ${p.carbohydrates ?? "-"}</p>
+
+            <p><b>Категория:</b> ${p.category ?? "-"}</p>
+            <p><b>Готовка:</b> ${p.cookingRequirement ?? "-"}</p>
+
+            <p><b>Состав:</b> ${p.composition ?? "-"}</p>
+
+            <p><b>Флаги:</b> ${p.flags?.join(", ") || "-"}</p>
+        </div>
+    `;
+}
+
+function closeProductView() {
+    document.getElementById("product-detail-section").classList.add("hidden");
+    document.getElementById("products-section").classList.remove("hidden");
 }
 
 /* =========================

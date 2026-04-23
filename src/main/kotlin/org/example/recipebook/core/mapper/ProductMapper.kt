@@ -5,6 +5,7 @@ import org.example.recipebook.core.database.entity.Product
 import org.example.recipebook.api.dto.ProductDto
 
 fun Product.toProductDto() = ProductDto(
+    id = this.id,
     name = this.name,
     photos = this.photos,
     calories = this.calories,

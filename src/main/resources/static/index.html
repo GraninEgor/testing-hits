@@ -8,8 +8,10 @@
 <body>
 
 <div class="container">
+
     <h1>Книга рецептов</h1>
 
+    <!-- ================= ТАБЫ ================= -->
     <div class="tabs">
         <button onclick="showTab('products')">Продукты</button>
         <button onclick="showTab('dishes')">Блюда</button>
@@ -47,9 +49,10 @@
                 <option value="carbohydrates,desc">Углеводы ↓</option>
             </select>
 
-            <button onclick="loadProducts()">Применить</button>
+            <button type="button" onclick="loadProducts()">Применить</button>
         </div>
 
+        <!-- форма создания продукта -->
         <form id="product-form">
 
             <input id="p-name" placeholder="Название" required>
@@ -77,12 +80,14 @@
             <button type="button" onclick="createProduct()">Создать продукт</button>
         </form>
 
+        <!-- список -->
         <div id="products-list"></div>
 
     </section>
 
     <!-- ================= БЛЮДА ================= -->
     <section id="dishes-section" class="hidden">
+
         <h2>Блюда</h2>
 
         <form id="dish-form">
@@ -90,6 +95,7 @@
             <input id="d-portion" type="number" placeholder="Размер порции (г)" required>
 
             <div id="ingredients"></div>
+
             <button type="button" onclick="addIngredientRow()">Добавить ингредиент</button>
 
             <div class="macros">
@@ -105,8 +111,16 @@
 
         <div id="dishes-list"></div>
     </section>
+
+    <!-- ================= ДЕТАЛКА ПРОДУКТА ================= -->
+    <section id="product-detail-section" class="hidden">
+        <button onclick="closeProductView()">← Назад</button>
+        <div id="product-detail"></div>
+    </section>
+
 </div>
 
 <script src="app.js"></script>
+
 </body>
 </html>

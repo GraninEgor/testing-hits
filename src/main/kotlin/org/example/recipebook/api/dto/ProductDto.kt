@@ -11,6 +11,7 @@ import org.example.recipebook.core.database.entity.FeatureFlag
  * DTO for [org.example.recipebook.core.database.entity.Product]
  */
 data class ProductDto(
+    val id: Long,
     @field:Size(min = 2) @field:NotBlank val name: String,
     @field:Size(max = 5) val photos: List<String>,
     val calories: Double,
