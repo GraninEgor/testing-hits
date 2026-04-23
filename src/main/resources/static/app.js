@@ -85,7 +85,7 @@ async function createProduct() {
 
     formData.append(
         "data",
-        new Blob([JSON.stringify(dto)], )
+        new Blob([JSON.stringify(dto)], { type: "application/json" })
     );
 
     if (fileInput.files.length) {
