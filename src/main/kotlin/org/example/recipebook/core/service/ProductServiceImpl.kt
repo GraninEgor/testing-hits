@@ -66,14 +66,27 @@ class ProductServiceImpl(private val productRepository: ProductRepository, priva
 
     @Throws(IOException::class)
     override fun patch(id: Long, patchNode: JsonNode): ProductDto {
-        val product: Product = productRepository.findById(id).orElseThrow {
-            ResponseStatusException(HttpStatus.NOT_FOUND, "Entity with id `$id` not found")
+        val product = productRepository.findById(id).orElseThrow {
+            ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found")
         }
-        val productDto = product.toProductDto()
-        objectMapper.readerForUpdating(productDto).readValue<ProductDto>(patchNode)
-        product.updateWithNull(productDto)
-        val resultProduct: Product = productRepository.save(product)
-        return resultProduct.toProductDto()
+
+        val dto = product.toProductDto()
+
+        objectMapper.readerForUpdating(dto).readValue<ProductDto>(patchNode)
+
+        val totalBju =
+            dto.proteins + dto.fats + dto.carbohydrates
+
+        if (totalBju > 100) {
+            throw ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Сумма БЖУ не может превышать 100 (сейчас $totalBju)"
+            )
+        }
+
+        product.updateWithNull(dto)
+
+        return productRepository.save(product).toProductDto()
     }
 
     @Throws(IOException::class)

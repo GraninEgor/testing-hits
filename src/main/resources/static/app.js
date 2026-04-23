@@ -2,6 +2,8 @@ const PRODUCTS_API = "/rest/admin-ui/products";
 const DISHES_API = "/rest/admin-ui/dishes";
 
 let allProducts = [];
+let editingProductId = null;
+let existingPhoto = null;
 
 /* =========================
    ТАБЫ
@@ -31,6 +33,96 @@ function extractProducts(data) {
     return [];
 }
 
+async function startEditProduct(id) {
+    const res = await fetch(`${PRODUCTS_API}/${id}`);
+    const p = await res.json();
+
+    editingProductId = id;
+    existingPhoto = p.photos?.[0] || null;
+
+    document.getElementById("p-name").value = p.name ?? "";
+    document.getElementById("p-calories").value = p.calories ?? 0;
+    document.getElementById("p-proteins").value = p.proteins ?? 0;
+    document.getElementById("p-fats").value = p.fats ?? 0;
+    document.getElementById("p-carbs").value = p.carbohydrates ?? 0;
+    document.getElementById("p-category").value = p.category ?? "";
+    document.getElementById("p-cooking").value = p.cookingRequirement ?? "";
+
+    const preview = document.getElementById("preview");
+
+    if (existingPhoto) {
+        preview.src = existingPhoto;
+        preview.classList.remove("hidden");
+    } else {
+        preview.classList.add("hidden");
+    }
+}
+
+function validateBJU(dto) {
+    const sum = dto.proteins + dto.fats + dto.carbohydrates;
+
+    if (sum > 100) {
+        alert("Сумма БЖУ на 100г не может превышать 100");
+        return false;
+    }
+
+    return true;
+}
+
+async function saveProduct() {
+    const fileInput = document.getElementById("p-photo");
+
+    const dto = {
+        name: document.getElementById("p-name").value,
+        calories: +document.getElementById("p-calories").value,
+        proteins: +document.getElementById("p-proteins").value,
+        fats: +document.getElementById("p-fats").value,
+        carbohydrates: +document.getElementById("p-carbs").value,
+        category: document.getElementById("p-category").value,
+        cookingRequirement: document.getElementById("p-cooking").value,
+        composition: null,
+        flags: []
+    };
+
+    // 🔥 ВАЖНО: не теряем фото
+    dto.photos =
+        fileInput.files.length > 0
+            ? [] // сервер перезапишет через file
+            : (existingPhoto ? [existingPhoto] : []);
+
+    if (!validateBJU(dto)) return;
+
+    const formData = new FormData();
+    formData.append(
+        "data",
+        new Blob([JSON.stringify(dto)], { type: "application/json" })
+    );
+
+    if (fileInput.files.length > 0) {
+        formData.append("file", fileInput.files[0]);
+    }
+
+    if (editingProductId) {
+        await fetch(`${PRODUCTS_API}/${editingProductId}`, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(dto)
+        });
+        editingProductId = null;
+        existingPhoto = null;
+    } else {
+        await fetch(PRODUCTS_API, {
+            method: "POST",
+        });
+    }
+
+    document.getElementById("product-form").reset();
+    document.getElementById("preview").classList.add("hidden");
+
+    loadProducts();
+}
 /* =========================
    PRODUCTS
 ========================= */
@@ -64,28 +156,24 @@ function renderProducts(products) {
     const list = document.getElementById("products-list");
     list.innerHTML = "";
 
-    if (!Array.isArray(products)) return;
-
     products.forEach(p => {
-        if (!p?.id) return; // 🔥 защита
+        if (!p?.id) return;
 
         const card = document.createElement("div");
         card.className = "card";
-        card.style.cursor = "pointer";
-
-        card.onclick = () => openProduct(p.id); // ✅ БЕЗ INLINE HTML
 
         card.innerHTML = `
             ${p.photos?.[0] ? `<img src="${p.photos[0]}" width="100">` : ""}
-            <b>${p.name ?? "-"}</b><br>
-            Ккал: ${p.calories ?? "-"}<br>
-            Б: ${p.proteins ?? "-"} Ж: ${p.fats ?? "-"} У: ${p.carbohydrates ?? "-"}
+            <b>${p.name}</b><br>
+            Ккал: ${p.calories}<br>
+
+            <button onclick="openProduct(${p.id})">Открыть</button>
+            <button onclick="startEditProduct(${p.id})">Редактировать</button>
         `;
 
         list.appendChild(card);
     });
 }
-
 /* =========================
    PREVIEW IMAGE
 ========================= */

@@ -22,6 +22,7 @@
 
         <h2>Продукты</h2>
 
+        <!-- фильтры -->
         <div class="filters">
             <select id="filter-category">
                 <option value="">Все категории</option>
@@ -52,10 +53,11 @@
             <button type="button" onclick="loadProducts()">Применить</button>
         </div>
 
-        <!-- форма создания продукта -->
+        <!-- форма продукта -->
         <form id="product-form">
 
             <input id="p-name" placeholder="Название" required>
+
             <input id="p-calories" type="number" placeholder="Ккал" required>
             <input id="p-proteins" type="number" placeholder="Белки" required>
             <input id="p-fats" type="number" placeholder="Жиры" required>
@@ -77,7 +79,9 @@
 
             <img id="preview" class="preview hidden">
 
-            <button type="button" onclick="createProduct()">Создать продукт</button>
+            <!-- 🔥 одна кнопка и create и edit -->
+            <button type="button" onclick="saveProduct()">Сохранить продукт</button>
+
         </form>
 
         <!-- список -->
@@ -91,6 +95,7 @@
         <h2>Блюда</h2>
 
         <form id="dish-form">
+
             <input id="d-name" placeholder="Название блюда" required>
             <input id="d-portion" type="number" placeholder="Размер порции (г)" required>
 
@@ -107,6 +112,7 @@
 
             <button type="button" onclick="calculateDishMacros()">Рассчитать</button>
             <button type="button" onclick="createDish()">Создать блюдо</button>
+
         </form>
 
         <div id="dishes-list"></div>
@@ -114,8 +120,10 @@
 
     <!-- ================= ДЕТАЛКА ПРОДУКТА ================= -->
     <section id="product-detail-section" class="hidden">
+
         <button onclick="closeProductView()">← Назад</button>
         <div id="product-detail"></div>
+
     </section>
 
 </div>
