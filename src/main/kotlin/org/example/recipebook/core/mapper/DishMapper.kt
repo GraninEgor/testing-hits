@@ -9,21 +9,19 @@ import org.example.recipebook.core.database.entity.FeatureFlag
 
 fun Dish.toDishDto() = DishDto(
     id = this.id,
-
     name = this.name,
     photos = this.photos,
     calories = this.calories,
     proteins = this.proteins,
     fats = this.fats,
     carbohydrates = this.carbohydrates,
-
     ingredients = this.ingredients.map {
         DishIngredientDto(
-            productId = it.product.id,
+            productId = it.product.id!!,
+            productName = it.product.name,
             amount = it.amount
         )
     },
-
     portionSize = this.portionSize,
     category = this.category,
     flags = this.flags,

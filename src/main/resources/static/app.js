@@ -8,6 +8,7 @@ const DISHES_API = "/rest/admin-ui/dishes";
 let allProducts = [];
 let editingProductId = null;
 let existingPhoto = null;
+let editDishId = null;
 
 /* =========================
    📍 ТАБЫ
@@ -298,6 +299,58 @@ function getDishFlagsFromUI() {
    📍 CREATE DISH
 ========================= */
 
+async function saveDish() {
+
+    const ingredients = [];
+
+    document.querySelectorAll(".ingredient-row").forEach(row => {
+        ingredients.push({
+            productId: +row.querySelector(".ingredient-product").value,
+            amount: +row.querySelector(".ingredient-amount").value
+        });
+    });
+
+    const dto = {
+        name: document.getElementById("d-name").value,
+        portionSize: +document.getElementById("d-portion").value,
+        calories: +document.getElementById("d-calories").value,
+        proteins: +document.getElementById("d-proteins").value,
+        fats: +document.getElementById("d-fats").value,
+        carbohydrates: +document.getElementById("d-carbs").value,
+        ingredients: ingredients,
+        flags: getDishFlagsFromUI()
+    };
+
+    if (editDishId) {
+        await fetch(`${DISHES_API}/${editDishId}`, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(dto)
+        });
+
+        editDishId = null;
+
+    } else {
+        await fetch(DISHES_API, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(dto)
+        });
+    }
+
+    clearDishForm();
+    loadDishes();
+}
+
+function clearDishForm() {
+    document.getElementById("dish-form").reset();
+    document.getElementById("ingredients").innerHTML = "";
+}
+
 async function createDish() {
     const fileInput = document.getElementById("d-photo");
 
@@ -386,62 +439,76 @@ function renderDishes(dishes) {
             ${d.photos?.[0] ? `<img src="${d.photos[0]}" width="100">` : ""}
             <b>${d.name}</b><br>
             Ккал: ${d.calories ?? "-"}<br>
-            Флаги: ${d.flags?.join(", ") || "-"}
         
             <button onclick="openDish(${d.id})">Открыть</button>
-        `;
+            <button onclick="editDish(${d.id})">Редактировать</button>
+`;
         list.appendChild(card);
     });
 }
 
-async function openDish(id) {
-
+async function editDish(id) {
     const res = await fetch(`${DISHES_API}/${id}`);
     const d = await res.json();
 
-    document.getElementById("dishes-section").classList.add("hidden");
+    editDishId = id;
+
+    showTab('dishes');
+
+    document.getElementById("d-name").value = d.name;
+    document.getElementById("d-portion").value = d.portionSize;
+    document.getElementById("d-calories").value = d.calories;
+    document.getElementById("d-proteins").value = d.proteins;
+    document.getElementById("d-fats").value = d.fats;
+    document.getElementById("d-carbs").value = d.carbohydrates;
+
+    document.getElementById("ingredients").innerHTML = "";
+
+    d.ingredients.forEach(ing => {
+        addIngredientRow();
+
+        const rows = document.querySelectorAll(".ingredient-row");
+        const row = rows[rows.length - 1];
+
+        row.querySelector(".ingredient-product").value = ing.productId;
+        row.querySelector(".ingredient-amount").value = ing.amount;
+    });
+}
+function closeDishView() {
+    document.getElementById("dish-detail-section").classList.add("hidden");
+    document.getElementById("dishes-section").classList.remove("hidden");
+}
+async function openDish(id) {
+    const res = await fetch(`${DISHES_API}/${id}`);
+    const d = await res.json();
+
     document.getElementById("dish-detail-section").classList.remove("hidden");
-
-    let ingredientsHtml = "";
-
-    if (d.ingredients?.length) {
-        ingredientsHtml = "<h3>Состав:</h3><ul>";
-
-        d.ingredients.forEach(i => {
-            const product = allProducts.find(p => p.id === i.productId);
-
-            ingredientsHtml += `
-                <li>
-                    ${product?.name ?? "Удалённый продукт"}
-                    — ${i.amount} г
-                </li>
-            `;
-        });
-
-        ingredientsHtml += "</ul>";
-    } else {
-        ingredientsHtml = "<p>Состав не указан</p>";
-    }
+    document.getElementById("dishes-section").classList.add("hidden");
 
     document.getElementById("dish-detail").innerHTML = `
         <div class="card large">
-
-            ${d.photos?.[0] ? `<img src="${d.photos[0]}" width="250">` : ""}
+            ${d.photos?.[0] ? `<img src="${d.photos[0]}" width="200">` : ""}
 
             <h2>${d.name}</h2>
 
-            <p><b>Калории:</b> ${d.calories}</p>
+            <p><b>Ккал:</b> ${d.calories}</p>
             <p><b>Б:</b> ${d.proteins}</p>
             <p><b>Ж:</b> ${d.fats}</p>
             <p><b>У:</b> ${d.carbohydrates}</p>
 
             <p><b>Порция:</b> ${d.portionSize} г</p>
-
             <p><b>Категория:</b> ${d.category}</p>
-
             <p><b>Флаги:</b> ${d.flags?.join(", ") || "-"}</p>
 
-            ${ingredientsHtml}
+            <h3>Состав</h3>
+            ${d.ingredients?.length
+        ? d.ingredients.map(i => `
+                    <div>
+                        ${i.productName} — ${i.amount} г
+                    </div>
+                `).join("")
+        : "<p>Состав не указан</p>"
+    }
         </div>
     `;
 }

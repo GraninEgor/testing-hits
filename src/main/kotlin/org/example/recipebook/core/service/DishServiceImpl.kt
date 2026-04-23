@@ -85,16 +85,76 @@ class DishServiceImpl(
         return saved.toDishDto()
     }
 
-    @Throws(IOException::class)
     override fun patch(id: Long, patchNode: JsonNode): DishDto {
-        val dish: Dish = dishRepository.findById(id).orElseThrow {
-            ResponseStatusException(HttpStatus.NOT_FOUND, "Entity with id `$id` not found")
+
+        val dish = dishRepository.findById(id)
+            .orElseThrow()
+
+        val dto = dish.toDishDto()
+
+        val updated = objectMapper.readerForUpdating(dto)
+            .readValue<DishDto>(patchNode)
+
+        // ===== базовые поля =====
+        dish.name = updated.name
+        dish.photos = updated.photos
+        dish.category = updated.category
+        dish.portionSize = updated.portionSize
+        dish.flags = updated.flags
+
+        // ===== ингредиенты =====
+        if (patchNode.has("ingredients")) {
+
+            dish.ingredients = updated.ingredients.map { ing ->
+                val product = productRepository.findById(ing.productId)
+                    .orElseThrow()
+
+                DishIngredient(
+                    dish = dish,
+                    product = product,
+                    amount = ing.amount
+                )
+            }
         }
-        val dishDto = dish.toDishDto()
-        objectMapper.readerForUpdating(dishDto).readValue<DishDto>(patchNode)
-        dish.updateWithNull(dishDto)
-        val resultDish: Dish = dishRepository.save(dish)
-        return resultDish.toDishDto()
+
+        recalc(dish)
+        validate(dish)
+
+        return dishRepository.save(dish).toDishDto()
+    }
+
+    private fun recalc(dish: Dish) {
+
+        var c = 0.0
+        var p = 0.0
+        var f = 0.0
+        var u = 0.0
+
+        dish.ingredients.forEach {
+            val k = it.amount / 100.0
+            val pr = it.product
+
+            c += pr.calories * k
+            p += pr.proteins * k
+            f += pr.fats * k
+            u += pr.carbohydrates * k
+        }
+
+        dish.calories = c
+        dish.proteins = p
+        dish.fats = f
+        dish.carbohydrates = u
+    }
+
+    private fun validate(dish: Dish) {
+        val sum = dish.proteins + dish.fats + dish.carbohydrates
+
+        if (sum > 100.0) {
+            throw ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "BJU > 100 per 100g"
+            )
+        }
     }
 
     @Throws(IOException::class)
