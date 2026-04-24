@@ -376,18 +376,22 @@ async function deleteDish(id) {
 
     loadDishes();
 }
+
 function calculateDishMacros() {
 
-    if (manualMacros) return; // 👈 не затираем ручные правки
+    if (manualMacros) return;
 
-    let calories = 0, proteins = 0, fats = 0, carbs = 0;
+    let calories = 0;
+    let proteins = 0;
+    let fats = 0;
+    let carbs = 0;
 
     document.querySelectorAll(".ingredient-row").forEach(row => {
         const id = row.querySelector(".ingredient-product").value;
         const amount = +row.querySelector(".ingredient-amount").value;
 
         const product = allProducts.find(p => p.id == id);
-        if (!product) return;
+        if (!product || !amount) return;
 
         calories += product.calories * amount / 100;
         proteins += product.proteins * amount / 100;
@@ -474,28 +478,6 @@ function addIngredientRow() {
    📍 DISH MACROS
 ========================= */
 
-function calculateDishMacros() {
-    let calories = 0, proteins = 0, fats = 0, carbs = 0;
-
-    document.querySelectorAll(".ingredient-row").forEach(row => {
-        const id = row.querySelector(".ingredient-product").value;
-        const amount = +row.querySelector(".ingredient-amount").value;
-
-        const product = allProducts.find(p => p.id == id);
-        if (!product) return;
-
-        calories += product.calories * amount / 100;
-        proteins += product.proteins * amount / 100;
-        fats += product.fats * amount / 100;
-        carbs += product.carbohydrates * amount / 100;
-    });
-
-    document.getElementById("d-calories").value = calories.toFixed(1);
-    document.getElementById("d-proteins").value = proteins.toFixed(1);
-    document.getElementById("d-fats").value = fats.toFixed(1);
-    document.getElementById("d-carbs").value = carbs.toFixed(1);
-}
-
 function clearDishForm() {
     document.getElementById("dish-form").reset();
     document.getElementById("ingredients").innerHTML = ""; // 🔥 ВАЖНО
@@ -554,6 +536,8 @@ function handleDishChange(e) {
         e.target.classList.contains("ingredient-amount") ||
         e.target.classList.contains("ingredient-product")
     ) {
+        manualMacros = false; // 👈 ВАЖНО
+
         calculateDishMacros();
         updateDishFlagsAvailability();
     }
