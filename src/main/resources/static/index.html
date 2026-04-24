@@ -46,6 +46,10 @@
 
             <input id="product-search" placeholder="Поиск...">
 
+            <label><input type="checkbox" id="p-f-vegan" onchange="loadProducts()"> Веган</label>
+            <label><input type="checkbox" id="p-f-gluten" onchange="loadProducts()"> Без глютена</label>
+            <label><input type="checkbox" id="p-f-sugar" onchange="loadProducts()"> Без сахара</label>
+
             <select id="sort">
                 <option value="name,asc">Имя ↑</option>
                 <option value="name,desc">Имя ↓</option>

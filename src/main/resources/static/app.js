@@ -241,8 +241,19 @@ async function loadProducts() {
     const res = await fetch(`${PRODUCTS_API}?${params}`);
     const data = await res.json();
 
+
     allProducts = extractProducts(data);
-    renderProducts(allProducts);
+    const vegan = document.getElementById("p-f-vegan")?.checked;
+    const gluten = document.getElementById("p-f-gluten")?.checked;
+    const sugar = document.getElementById("p-f-sugar")?.checked;
+
+    let products = allProducts;
+
+    if (vegan) products = products.filter(p => p.flags?.includes("VEGAN"));
+    if (gluten) products = products.filter(p => p.flags?.includes("GLUTEN_FREE"));
+    if (sugar) products = products.filter(p => p.flags?.includes("SUGAR_FREE"));
+
+    renderProducts(products);
 }
 
 function renderProducts(products) {
