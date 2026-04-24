@@ -33,6 +33,7 @@ dependencies {
     runtimeOnly 'org.postgresql:postgresql'
     runtimeOnly 'org.springframework.boot:spring-boot-docker-compose'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    implementation("io.github.microutils:kotlin-logging-jvm:3.0.5")
 }
 
 kotlin {

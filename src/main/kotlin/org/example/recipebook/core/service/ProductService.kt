@@ -13,10 +13,10 @@ interface ProductService {
     fun getAll(filter: ProductFilter, pageable: Pageable): Page<ProductDto>
     fun getOne(id: Long): ProductDto
     fun getMany(ids: List<Long>): List<ProductDto>
-    fun create(dto: ProductCreateDto, file: List<MultipartFile>??): ProductDto
+    fun create(dto: ProductCreateDto, files: List<MultipartFile>??): ProductDto
 
     @Throws(IOException::class)
-    fun patch( id: Long,  patchNode: JsonNode): ProductDto
+    fun patch( id: Long,  dto: ProductCreateDto,  files: List<MultipartFile>?): ProductDto
 
     @Throws(IOException::class)
     fun patchMany(ids: List<Long>, patchNode: JsonNode): List<Long>

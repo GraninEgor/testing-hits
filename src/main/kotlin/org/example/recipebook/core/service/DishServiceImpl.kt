@@ -4,8 +4,11 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.example.recipebook.api.dto.DishCreateDto
 import org.example.recipebook.api.dto.DishDto
+import org.example.recipebook.api.dto.DishPatchDto
 import org.example.recipebook.core.database.entity.Dish
+import org.example.recipebook.core.database.entity.DishCategory
 import org.example.recipebook.core.database.entity.DishIngredient
+import org.example.recipebook.core.database.entity.FeatureFlag
 import org.example.recipebook.core.filter.DishFilter
 import org.example.recipebook.core.database.repository.DishRepository
 import org.example.recipebook.core.database.repository.ProductRepository
@@ -30,29 +33,26 @@ class DishServiceImpl(
     private val dishRepository: DishRepository,
     private val objectMapper: ObjectMapper,
     private val productRepository: ProductRepository
-) :
-    DishService {
+) : DishService {
+
     override fun getAll(filter: DishFilter, pageable: Pageable): Page<DishDto> {
         val spec: Specification<Dish> = filter.toSpecification()
-        val dishes: Page<Dish> = dishRepository.findAll(spec, pageable)
-        return dishes.map(Dish::toDishDto)
+        return dishRepository.findAll(spec, pageable).map(Dish::toDishDto)
     }
 
-    override fun getOne(id: Long): DishDto {
-        val dishOptional: Optional<Dish> = dishRepository.findById(id)
-        return dishOptional.orElse(null).toDishDto()
-    }
+    override fun getOne(id: Long): DishDto =
+        dishRepository.findById(id)
+            .orElseThrow()
+            .toDishDto()
 
-    override fun getMany(ids: List<Long>): List<DishDto> {
-        val dishes: List<Dish> = dishRepository.findAllById(ids)
-        return dishes.map(Dish::toDishDto)
-    }
+    override fun getMany(ids: List<Long>): List<DishDto> =
+        dishRepository.findAllById(ids).map(Dish::toDishDto)
 
     override fun create(dto: DishCreateDto, file: List<MultipartFile>?): DishDto {
 
-        val photoUrls: List<String> = file?.map { f ->
+        val photoUrls = file?.map { f ->
             val uploadDir = "uploads/"
-            val fileName = UUID.randomUUID().toString() + "_" + f.originalFilename
+            val fileName = "${UUID.randomUUID()}_${f.originalFilename}"
 
             val path = Paths.get(uploadDir + fileName)
             Files.createDirectories(path.parent)
@@ -62,59 +62,68 @@ class DishServiceImpl(
         } ?: emptyList()
 
         val dish = dto.toEntity().apply {
-            if (photoUrls.isNotEmpty()) {
-                this.photos = photoUrls
-            }
+            if (photoUrls.isNotEmpty()) photos = photoUrls
         }
 
-        val ingredients = dto.ingredients.map { ing ->
-            val product = productRepository.findById(ing.productId)
-                .orElseThrow()
+        dish.ingredients = dto.ingredients.map { ing ->
+            val product = productRepository.findById(ing.productId).orElseThrow()
 
             DishIngredient(
                 dish = dish,
                 product = product,
                 amount = ing.amount
             )
-        }
+        }.toMutableList()
 
-        dish.ingredients = ingredients
-
-        val saved = dishRepository.save(dish)
-
-        return saved.toDishDto()
+        return dishRepository.save(dish).toDishDto()
     }
 
-    override fun patch(id: Long, patchNode: JsonNode): DishDto {
+    override fun patch(id: Long, dto: DishPatchDto, files: List<MultipartFile>?): DishDto {
 
-        val dish = dishRepository.findById(id)
-            .orElseThrow()
+        val dish = dishRepository.findById(id).orElseThrow()
 
-        val dto = dish.toDishDto()
+        dto.name?.let { dish.name = it }
+        dto.portionSize?.let { dish.portionSize = it }
+        dto.category?.let { dish.category = it }
+        dto.flags?.let { dish.flags = it }
 
-        val updated = objectMapper.readerForUpdating(dto)
-            .readValue<DishDto>(patchNode)
+        dto.calories?.let { dish.calories = it }
+        dto.proteins?.let { dish.proteins = it }
+        dto.fats?.let { dish.fats = it }
+        dto.carbohydrates?.let { dish.carbohydrates = it }
 
-        // ===== базовые поля =====
-        dish.name = updated.name
-        dish.photos = updated.photos
-        dish.category = updated.category
-        dish.portionSize = updated.portionSize
-        dish.flags = updated.flags
+        val photoUrls = files?.map { f ->
+            val uploadDir = "uploads/"
+            val fileName = "${UUID.randomUUID()}_${f.originalFilename}"
 
-        // ===== ингредиенты =====
-        if (patchNode.has("ingredients")) {
+            val path = Paths.get(uploadDir + fileName)
+            Files.createDirectories(path.parent)
+            f.transferTo(path)
 
-            dish.ingredients = updated.ingredients.map { ing ->
-                val product = productRepository.findById(ing.productId)
-                    .orElseThrow()
+            "/uploads/$fileName"
+        }
 
-                DishIngredient(
-                    dish = dish,
-                    product = product,
-                    amount = ing.amount
-                )
-            }
+        if (!photoUrls.isNullOrEmpty()) {
+            dish.photos = photoUrls
+        }
+
+        // ✅ ВАЖНО: НЕ ПЕРЕЗАМЕНЯЕМ КОЛЛЕКЦИЮ
+        dto.ingredients?.let { newIngredients ->
+
+            dish.ingredients.clear()
+
+            dish.ingredients.addAll(
+                newIngredients.map { ing ->
+                    val product = productRepository.findById(ing.productId)
+                        .orElseThrow()
+
+                    DishIngredient(
+                        dish = dish,
+                        product = product,
+                        amount = ing.amount
+                    )
+                }
+            )
         }
 
         recalc(dish)
@@ -124,7 +133,6 @@ class DishServiceImpl(
     }
 
     private fun recalc(dish: Dish) {
-
         var c = 0.0
         var p = 0.0
         var f = 0.0
@@ -159,23 +167,25 @@ class DishServiceImpl(
 
     @Throws(IOException::class)
     override fun patchMany(ids: List<Long>, patchNode: JsonNode): List<Long> {
-        val dishes: Collection<Dish> = dishRepository.findAllById(ids)
-        for (dish in dishes) {
+        val dishes = dishRepository.findAllById(ids)
+
+        dishes.forEach { dish ->
             val dishDto = dish.toDishDto()
-            objectMapper.readerForUpdating(dishDto).readValue<DishDto>(patchNode)
+            objectMapper.readerForUpdating(dishDto)
+                .readValue<DishDto>(patchNode)
+
             dish.updateWithNull(dishDto)
         }
-        val resultDishes: List<Dish> = dishRepository.saveAll(dishes)
-        return resultDishes.map(Dish::id)
+
+        return dishRepository.saveAll(dishes).map { it.id }
     }
 
     override fun delete(id: Long): DishDto? {
-        val dish: Dish? = dishRepository.findById(id).orElse(null)
-        if (dish != null) {
-            dishRepository.delete(dish)
-        }
+        val dish = dishRepository.findById(id).orElse(null)
+        if (dish != null) dishRepository.delete(dish)
         return dish?.toDishDto()
     }
 
-    override fun deleteMany(ids: List<Long>) = dishRepository.deleteAllById(ids)
+    override fun deleteMany(ids: List<Long>) =
+        dishRepository.deleteAllById(ids)
 }

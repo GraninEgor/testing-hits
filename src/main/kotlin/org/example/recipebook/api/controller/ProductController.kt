@@ -1,6 +1,7 @@
 package org.example.recipebook.api.controller
 import com.fasterxml.jackson.databind.JsonNode
 import jakarta.validation.Valid
+import mu.KotlinLogging
 import org.example.recipebook.api.dto.ProductCreateDto
 import org.example.recipebook.api.dto.ProductDto
 import org.example.recipebook.core.filter.ProductFilter
@@ -25,6 +26,7 @@ import org.springframework.web.multipart.MultipartFile
 import java.io.IOException
 
 @RestController
+
 @RequestMapping("/rest/admin-ui/products")
 class ProductController(private val productService: ProductService) {
     @GetMapping
@@ -32,6 +34,8 @@ class ProductController(private val productService: ProductService) {
         val productDto: Page<ProductDto> = productService.getAll(filter, pageable)
         return PagedModel(productDto)
     }
+
+    private val log = KotlinLogging.logger {}
 
     @GetMapping("/{id}")
     fun getOne(@PathVariable id: Long): ProductDto = productService.getOne(id)
@@ -44,13 +48,20 @@ class ProductController(private val productService: ProductService) {
         @RequestPart("data") dto: ProductCreateDto,
         @RequestPart("files", required = false) files: List<MultipartFile>?
     ): ProductDto {
+        files?.forEach {
+            log.info("FILE -> name: {}, size: {}", it.originalFilename, it.size)
+        }
         return productService.create(dto, files)
     }
 
-    @PatchMapping("/{id}/photo", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-    @Throws(IOException::class)
-    fun patch(@PathVariable id: Long, @RequestBody patchNode: JsonNode): ProductDto =
-        productService.patch(id, patchNode)
+    @PatchMapping("/{id}", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    fun patch(
+        @PathVariable id: Long,
+        @RequestPart("data") dto: ProductCreateDto,
+        @RequestPart("files", required = false) files: List<MultipartFile>?
+    ): ProductDto {
+        return productService.patch(id, dto, files)
+    }
 
 
     @PatchMapping

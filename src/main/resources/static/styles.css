@@ -82,6 +82,19 @@ button {
     border-radius: 6px;
 }
 
+.gallery {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.gallery-img {
+    width: 120px;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
 .photo-item button {
     position: absolute;
     top: -5px;

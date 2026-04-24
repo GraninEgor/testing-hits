@@ -3,6 +3,8 @@ package org.example.recipebook.core.service
 import com.fasterxml.jackson.databind.JsonNode
 import org.example.recipebook.api.dto.DishCreateDto
 import org.example.recipebook.api.dto.DishDto
+import org.example.recipebook.api.dto.DishPatchDto
+import org.example.recipebook.api.dto.ProductCreateDto
 import org.example.recipebook.core.filter.DishFilter
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -16,7 +18,7 @@ interface DishService {
     fun create(dto: DishCreateDto,  file: List<MultipartFile>?): DishDto
 
     @Throws(IOException::class)
-    fun patch(id: Long, patchNode: JsonNode): DishDto
+    fun patch(id: Long, dto: DishPatchDto, files: List<MultipartFile>?): DishDto
 
     @Throws(IOException::class)
     fun patchMany(ids: List<Long>, patchNode: JsonNode): List<Long>

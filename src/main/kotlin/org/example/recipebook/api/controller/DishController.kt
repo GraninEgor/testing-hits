@@ -4,12 +4,14 @@ import com.fasterxml.jackson.databind.JsonNode
 import jakarta.validation.Valid
 import org.example.recipebook.api.dto.DishCreateDto
 import org.example.recipebook.api.dto.DishDto
+import org.example.recipebook.api.dto.DishPatchDto
 import org.example.recipebook.core.filter.DishFilter
 import org.example.recipebook.core.service.DishService
 import org.springdoc.core.annotations.ParameterObject
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.web.PagedModel
+import org.springframework.http.MediaType
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.ModelAttribute
@@ -22,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RequestPart
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.multipart.MultipartFile
+import java.awt.PageAttributes
 import java.io.IOException
 
 @RestController
@@ -50,11 +53,15 @@ class DishController(private val dishService: DishService) {
         return dishService.create(dto, files)
     }
 
+    @PatchMapping("/{id}", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    fun patch(
+        @PathVariable id: Long,
+        @RequestPart("data") dto: DishPatchDto,
+        @RequestPart("files", required = false) files: List<MultipartFile>?
+    ): DishDto {
+        return dishService.patch(id, dto, files)
+    }
 
-
-    @PatchMapping("/{id}")
-    @Throws(IOException::class)
-    fun patch(@PathVariable id: Long, @RequestBody patchNode: JsonNode): DishDto = dishService.patch(id, patchNode)
 
     @PatchMapping
     @Throws(IOException::class)

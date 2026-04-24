@@ -46,9 +46,9 @@ class ProductServiceImpl(
         return products.map(Product::toProductDto)
     }
 
-    override fun create(dto: ProductCreateDto, file: List<MultipartFile>?): ProductDto {
+    override fun create(dto: ProductCreateDto, files: List<MultipartFile>?): ProductDto {
 
-        val photoUrls: List<String> = file?.map { f ->
+        val photoUrls: List<String> = files?.map { f ->
             val uploadDir = "uploads/"
             val fileName = UUID.randomUUID().toString() + "_" + f.originalFilename
 
@@ -70,17 +70,31 @@ class ProductServiceImpl(
     }
 
     @Throws(IOException::class)
-    override fun patch(id: Long, patchNode: JsonNode): ProductDto {
+    override fun patch(
+        id: Long,
+        dto: ProductCreateDto,
+        files: List<MultipartFile>?
+    ): ProductDto {
+
         val product = productRepository.findById(id).orElseThrow {
             ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found")
         }
 
-        val dto = product.toProductDto()
+        // 1. Обновляем поля
+        product.name = dto.name
+        product.calories = dto.calories
+        product.proteins = dto.proteins
+        product.fats = dto.fats
+        product.carbohydrates = dto.carbohydrates
+        product.category = dto.category
+        product.cookingRequirement = dto.cookingRequirement
+        product.flags = dto.flags
 
-        objectMapper.readerForUpdating(dto).readValue<ProductDto>(patchNode)
-
+        // 2. Валидация БЖУ
         val totalBju =
-            dto.proteins + dto.fats + dto.carbohydrates
+            (dto.proteins ?: 0.0) +
+                    (dto.fats ?: 0.0) +
+                    (dto.carbohydrates ?: 0.0)
 
         if (totalBju > 100) {
             throw ResponseStatusException(
@@ -89,7 +103,25 @@ class ProductServiceImpl(
             )
         }
 
-        product.updateWithNull(dto)
+        // 3. Фото (если есть новые — заменяем или добавляем)
+        if (!files.isNullOrEmpty()) {
+            val savedUrls = files.map { f ->
+                val uploadDir = "uploads/"
+                val fileName = "${UUID.randomUUID()}_${f.originalFilename}"
+
+                val path = Paths.get(uploadDir + fileName)
+                Files.createDirectories(path.parent)
+                f.transferTo(path)
+
+                "/uploads/$fileName"
+            }
+
+            // вариант 1: заменить все фото
+            product.photos = savedUrls
+
+            // вариант 2 (если хочешь ДОБАВЛЯТЬ):
+            // product.photos = (product.photos ?: emptyList()) + savedUrls
+        }
 
         return productRepository.save(product).toProductDto()
     }

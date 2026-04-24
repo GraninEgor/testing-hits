@@ -187,7 +187,7 @@ async function saveProduct() {
     const formData = new FormData();
     formData.append("data", new Blob([JSON.stringify(dto)], { type: "application/json" }));
 
-    if (fileInput.files.length > 0) {
+    if (productFiles.length > 0) {
         productFiles.forEach(file => {
             formData.append("files", file);
         });
@@ -253,8 +253,10 @@ function renderProducts(products) {
         const card = document.createElement("div");
         card.className = "card";
 
+        const firstPhoto = p.photos?.[0];
+
         card.innerHTML = `
-            ${p.photos?.[0] ? `<img src="${p.photos[0]}" width="100">` : ""}
+            ${firstPhoto ? `<img src="${firstPhoto}" width="100">` : ""}
             <b>${p.name}</b><br>
             Ккал: ${p.calories}<br>
 
@@ -265,6 +267,18 @@ function renderProducts(products) {
 
         list.appendChild(card);
     });
+}
+
+function renderGallery(photos = []) {
+    if (!photos.length) return "<p>Фото нет</p>";
+
+    return `
+        <div class="gallery">
+            ${photos.map(p => `
+                <img src="${p}" class="gallery-img">
+            `).join("")}
+        </div>
+    `;
 }
 
 async function deleteDish(id) {
@@ -335,25 +349,40 @@ document.addEventListener("DOMContentLoaded", () => {
 function addIngredientRow() {
     const container = document.getElementById("ingredients");
 
-    container.innerHTML += `
-        <div class="ingredient-row">
-            <select class="ingredient-product"></select>
-            <input class="ingredient-amount" type="number" placeholder="граммы">
-        </div>
-    `;
+    const row = document.createElement("div");
+    row.className = "ingredient-row";
 
-    populateIngredientSelects();
-}
+    const select = document.createElement("select");
+    select.className = "ingredient-product";
 
-function populateIngredientSelects() {
-    document.querySelectorAll(".ingredient-product").forEach(select => {
-        select.innerHTML = "";
-
-        allProducts.forEach(p => {
-            select.innerHTML += `<option value="${p.id}">${p.name}</option>`;
-        });
+    allProducts.forEach(p => {
+        const option = document.createElement("option");
+        option.value = p.id;
+        option.textContent = p.name;
+        select.appendChild(option);
     });
+
+    const input = document.createElement("input");
+    input.className = "ingredient-amount";
+    input.type = "number";
+    input.placeholder = "граммы";
+
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.textContent = "✕";
+    removeBtn.onclick = () => {
+        row.remove();
+        calculateDishMacros();
+        updateDishFlagsAvailability();
+    };
+
+    row.appendChild(select);
+    row.appendChild(input);
+    row.appendChild(removeBtn);
+
+    container.appendChild(row);
 }
+
 
 /* =========================
    📍 DISH MACROS
@@ -379,6 +408,12 @@ function calculateDishMacros() {
     document.getElementById("d-proteins").value = proteins.toFixed(1);
     document.getElementById("d-fats").value = fats.toFixed(1);
     document.getElementById("d-carbs").value = carbs.toFixed(1);
+}
+
+function clearDishForm() {
+    document.getElementById("dish-form").reset();
+    document.getElementById("ingredients").innerHTML = ""; // 🔥 ВАЖНО
+    manualMacros = false;
 }
 
 /* =========================
@@ -431,7 +466,6 @@ function getDishFlagsFromUI() {
 /* =========================
    📍 CREATE DISH
 ========================= */
-
 async function saveDish() {
 
     const ingredients = [];
@@ -451,29 +485,35 @@ async function saveDish() {
         fats: +document.getElementById("d-fats").value,
         carbohydrates: +document.getElementById("d-carbs").value,
         ingredients: ingredients,
-        flags: getDishFlagsFromUI()
+        flags: getDishFlagsFromUI(),
+        photos: [] // важно
     };
 
-    if (editDishId) {
-        await fetch(`${DISHES_API}/${editDishId}`, {
-            method: "PATCH",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(dto)
-        });
+    const formData = new FormData();
 
-        editDishId = null;
+    formData.append(
+        "data",
+        new Blob([JSON.stringify(dto)], { type: "application/json" })
+    );
 
-    } else {
-        await fetch(DISHES_API, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(dto)
+    if (dishFiles.length > 0) {
+        dishFiles.forEach(file => {
+            formData.append("files", file);
         });
     }
+
+    const url = editDishId
+        ? `${DISHES_API}/${editDishId}`
+        : DISHES_API;
+
+    const method = editDishId ? "PATCH" : "POST";
+
+    await fetch(url, {
+        method,
+        body: formData
+    });
+
+    editDishId = null;
 
     clearDishForm();
     loadDishes();
@@ -485,53 +525,6 @@ async function saveDish() {
 function clearDishForm() {
     document.getElementById("dish-form").reset();
     document.getElementById("ingredients").innerHTML = "";
-}
-
-async function createDish() {
-    const fileInput = document.getElementById("d-photo");
-
-    const ingredients = [];
-
-    document.querySelectorAll(".ingredient-row").forEach(row => {
-        const productId = +row.querySelector(".ingredient-product").value;
-        const amount = +row.querySelector(".ingredient-amount").value;
-
-        if (productId && amount > 0) {
-            ingredients.push({ productId, amount });
-        }
-    });
-
-    const dto = {
-        name: document.getElementById("d-name").value,
-        calories: +document.getElementById("d-calories").value,
-        proteins: +document.getElementById("d-proteins").value,
-        fats: +document.getElementById("d-fats").value,
-        carbohydrates: +document.getElementById("d-carbs").value,
-        ingredients,
-        portionSize: +document.getElementById("d-portion").value,
-        category: document.getElementById("d-category")?.value || "SECOND",
-        flags: getDishFlagsFromUI(),
-        photos: []
-    };
-
-    const formData = new FormData();
-    formData.append("data", new Blob([JSON.stringify(dto)], { type: "application/json" }));
-
-    if (fileInput.files.length) {
-        dishFiles.forEach(file => {
-            formData.append("files", file);
-        });
-    }
-
-    await fetch(DISHES_API, {
-        method: "POST",
-        body: formData
-    });
-
-    loadDishes();
-
-    document.getElementById("dish-form").reset();
-    document.getElementById("d-preview").classList.add("hidden");
 }
 
 /* =========================
@@ -565,26 +558,29 @@ async function loadDishes() {
 }
 
 
-function renderDishes(dishes) {
-    const list = document.getElementById("dishes-list");
-    list.innerHTML = "";
+    function renderDishes(dishes) {
+        const list = document.getElementById("dishes-list");
+        list.innerHTML = "";
 
-    dishes.forEach(d => {
-        const card = document.createElement("div");
-        card.className = "card";
+        dishes.forEach(d => {
+            const card = document.createElement("div");
+            card.className = "card";
 
-        card.innerHTML = `
-            ${d.photos?.[0] ? `<img src="${d.photos[0]}" width="100">` : ""}
+            const firstPhoto = d.photos?.[0];
+
+            card.innerHTML = `
+            ${firstPhoto ? `<img src="${firstPhoto}" width="100">` : ""}
             <b>${d.name}</b><br>
             Ккал: ${d.calories ?? "-"}<br>
-        
+
             <button onclick="openDish(${d.id})">Открыть</button>
             <button onclick="editDish(${d.id})">Редактировать</button>
             <button onclick="deleteDish(${d.id})">Удалить</button>
-`;
-        list.appendChild(card);
-    });
-}
+        `;
+
+            list.appendChild(card);
+        });
+    }
 
 async function editDish(id) {
     const res = await fetch(`${DISHES_API}/${id}`);
@@ -634,17 +630,17 @@ async function deleteProduct(id) {
     loadProducts();
 }
 
+    async function openDish(id) {
+        const res = await fetch(`${DISHES_API}/${id}`);
+        const d = await res.json();
 
-async function openDish(id) {
-    const res = await fetch(`${DISHES_API}/${id}`);
-    const d = await res.json();
+        document.getElementById("dish-detail-section").classList.remove("hidden");
+        document.getElementById("dishes-section").classList.add("hidden");
 
-    document.getElementById("dish-detail-section").classList.remove("hidden");
-    document.getElementById("dishes-section").classList.add("hidden");
-
-    document.getElementById("dish-detail").innerHTML = `
+        document.getElementById("dish-detail").innerHTML = `
         <div class="card large">
-            ${d.photos?.[0] ? `<img src="${d.photos[0]}" width="200">` : ""}
+
+            ${renderGallery(d.photos)}
 
             <h2>${d.name}</h2>
 
@@ -659,17 +655,14 @@ async function openDish(id) {
 
             <h3>Состав</h3>
             ${d.ingredients?.length
-        ? d.ingredients.map(i => `
-                    <div>
-                        ${i.productName} — ${i.amount} г
-                    </div>
+            ? d.ingredients.map(i => `
+                    <div>${i.productName} — ${i.amount} г</div>
                 `).join("")
-        : "<p>Состав не указан</p>"
-    }
+            : "<p>Состав не указан</p>"
+        }
         </div>
     `;
-}
-
+    }
 function closeDishView() {
     document.getElementById("dish-detail-section").classList.add("hidden");
     document.getElementById("dishes-section").classList.remove("hidden");
@@ -689,6 +682,37 @@ document.addEventListener("input", e => {
         updateDishFlagsAvailability();
     }
 });
+
+    async function openProduct(id) {
+        const res = await fetch(`${PRODUCTS_API}/${id}`);
+        const p = await res.json();
+
+        document.getElementById("product-detail-section").classList.remove("hidden");
+        document.getElementById("products-section").classList.add("hidden");
+
+        document.getElementById("product-detail").innerHTML = `
+        <div class="card large">
+
+            ${renderGallery(p.photos)}
+
+            <h2>${p.name}</h2>
+
+            <p><b>Ккал:</b> ${p.calories}</p>
+            <p><b>Белки:</b> ${p.proteins}</p>
+            <p><b>Жиры:</b> ${p.fats}</p>
+            <p><b>Углеводы:</b> ${p.carbohydrates}</p>
+
+            <p><b>Категория:</b> ${p.category}</p>
+            <p><b>Готовка:</b> ${p.cookingRequirement}</p>
+            <p><b>Флаги:</b> ${p.flags?.join(", ") || "-"}</p>
+        </div>
+    `;
+    }
+
+function closeProductView() {
+    document.getElementById("product-detail-section").classList.add("hidden");
+    document.getElementById("products-section").classList.remove("hidden");
+}
 
 /* =========================
    📍 INIT

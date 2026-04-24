@@ -45,7 +45,7 @@ class Dish(
 
     @OneToMany(mappedBy = "dish", cascade = [CascadeType.ALL], orphanRemoval = true)
     @field:Size(min = 1)
-    var ingredients: List<DishIngredient> = mutableListOf(),
+    var ingredients: MutableList<DishIngredient> = mutableListOf(),
 
     @field:NotNull
     @field:DecimalMin(value = "0.0", inclusive = false)
