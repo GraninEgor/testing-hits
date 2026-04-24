@@ -170,14 +170,24 @@ async function startEditProduct(id) {
 ========================= */
 
 async function saveProduct() {
-    const fileInput = document.getElementById("p-photo");
+    const calories = +document.getElementById("p-calories").value;
+    const proteins = +document.getElementById("p-proteins").value;
+    const fats = +document.getElementById("p-fats").value;
+    const carbs = +document.getElementById("p-carbs").value;
+
+    const totalMacros = proteins + fats + carbs;
+
+    if (totalMacros > 100) {
+        alert("Сумма БЖУ не может превышать 100");
+        return;
+    }
 
     const dto = {
         name: document.getElementById("p-name").value,
-        calories: +document.getElementById("p-calories").value,
-        proteins: +document.getElementById("p-proteins").value,
-        fats: +document.getElementById("p-fats").value,
-        carbohydrates: +document.getElementById("p-carbs").value,
+        calories,
+        proteins,
+        fats,
+        carbohydrates: carbs,
         category: document.getElementById("p-category").value,
         cookingRequirement: document.getElementById("p-cooking").value,
         flags: getProductFlags(),
@@ -216,7 +226,17 @@ async function saveProduct() {
     productFiles = [];
     renderProductPreview();
 }
+function cancelEditProduct() {
+    editingProductId = null;
+    existingPhoto = null;
+    productFiles = [];
 
+    document.getElementById("product-form").reset();
+    document.getElementById("preview").classList.add("hidden");
+    document.getElementById("p-photo-preview").innerHTML = "";
+
+    document.querySelectorAll(".p-flag").forEach(cb => cb.checked = false);
+}
 /* =========================
    📍 LOAD PRODUCTS
 ========================= */
