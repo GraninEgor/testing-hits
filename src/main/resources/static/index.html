@@ -128,6 +128,16 @@
         <form id="dish-form">
 
             <input id="d-name" placeholder="Название блюда" required>
+            <select id="d-category">
+                <option value="">Категория (из названия или вручную)</option>
+                <option value="DESSERT">Десерт</option>
+                <option value="FIRST">Первое</option>
+                <option value="SECOND">Второе</option>
+                <option value="DRINK">Напиток</option>
+                <option value="SALAD">Салат</option>
+                <option value="SOUP">Суп</option>
+                <option value="SNACK">Перекус</option>
+            </select>
             <input id="d-portion" type="number" placeholder="Размер порции (г)" required>
 
             <div id="ingredients"></div>
@@ -176,6 +186,7 @@
 
             <button type="button" onclick="calculateDishMacros()">Рассчитать</button>
             <button type="button" onclick="saveDish()">Сохранить блюдо</button>
+            <button type="button" onclick="cancelEditDish()">Отмена</button>
 
             <!-- FLAGS BLOCK (DISHE FORM) -->
             <div class="flags">

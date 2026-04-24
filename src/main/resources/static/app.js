@@ -226,6 +226,61 @@ async function saveProduct() {
     productFiles = [];
     renderProductPreview();
 }
+
+function cancelEditDish() {
+    editDishId = null;
+
+    document.getElementById("dish-form").reset();
+    document.getElementById("ingredients").innerHTML = "";
+
+    document.getElementById("d-photo-preview").innerHTML = "";
+    dishFiles = [];
+
+    document.getElementById("d-calories").value = "";
+    document.getElementById("d-proteins").value = "";
+    document.getElementById("d-fats").value = "";
+    document.getElementById("d-carbs").value = "";
+
+    manualMacros = false;
+
+    // сброс чекбоксов флагов
+    document.querySelectorAll(".d-flag").forEach(cb => {
+        cb.checked = false;
+        cb.disabled = false;
+    });
+}
+
+
+function extractCategoryFromName(name) {
+    const map = {
+        "!десерт": "DESSERT",
+        "!первое": "FIRST",
+        "!второе": "SECOND",
+        "!напиток": "DRINK",
+        "!салат": "SALAD",
+        "!суп": "SOUP",
+        "!перекус": "SNACK"
+    };
+
+    const parts = name.split(" ");
+
+    for (const part of parts) {
+        if (map[part]) {
+            return {
+                category: map[part],
+                cleanName: name.replace(part, "").trim()
+            };
+        }
+    }
+
+    return {
+        category: null,
+        cleanName: name
+    };
+}
+
+
+
 function cancelEditProduct() {
     editingProductId = null;
     existingPhoto = null;
@@ -452,25 +507,56 @@ function clearDishForm() {
 ========================= */
 
 function updateDishFlagsAvailability() {
+    const rows = document.querySelectorAll(".ingredient-row");
 
     let canVegan = true;
     let canGluten = true;
     let canSugar = true;
 
-    document.querySelectorAll(".ingredient-row").forEach(row => {
+    if (!rows.length) {
+        document.querySelectorAll(".d-flag").forEach(cb => {
+            cb.disabled = true;
+            cb.checked = false;
+        });
+        return;
+    }
+
+    rows.forEach(row => {
         const id = row.querySelector(".ingredient-product").value;
         const product = allProducts.find(p => p.id == id);
 
-        if (!product) return;
+        if (!product) {
+            canVegan = false;
+            canGluten = false;
+            canSugar = false;
+            return;
+        }
 
-        if (!product.flags?.includes("VEGAN")) canVegan = false;
-        if (!product.flags?.includes("GLUTEN_FREE")) canGluten = false;
-        if (!product.flags?.includes("SUGAR_FREE")) canSugar = false;
+        const flags = product.flags || [];
+
+        canVegan = canVegan && flags.includes("VEGAN");
+        canGluten = canGluten && flags.includes("GLUTEN_FREE");
+        canSugar = canSugar && flags.includes("SUGAR_FREE");
     });
 
     setDishFlagState("VEGAN", canVegan);
     setDishFlagState("GLUTEN_FREE", canGluten);
     setDishFlagState("SUGAR_FREE", canSugar);
+}
+
+
+document.addEventListener("input", handleDishChange);
+document.addEventListener("change", handleDishChange);
+document.addEventListener("click", handleDishChange);
+
+function handleDishChange(e) {
+    if (
+        e.target.classList.contains("ingredient-amount") ||
+        e.target.classList.contains("ingredient-product")
+    ) {
+        calculateDishMacros();
+        updateDishFlagsAvailability();
+    }
 }
 
 function setDishFlagState(flag, enabled) {
@@ -479,7 +565,11 @@ function setDishFlagState(flag, enabled) {
 
     cb.disabled = !enabled;
 
-    if (!enabled) cb.checked = false;
+    if (enabled) {
+        cb.checked = true;   // ✅ ВОТ ЭТО ГЛАВНОЕ
+    } else {
+        cb.checked = false;
+    }
 }
 
 function getDishFlagsFromUI() {
@@ -499,6 +589,15 @@ function getDishFlagsFromUI() {
 ========================= */
 async function saveDish() {
 
+    const rawName = document.getElementById("d-name").value;
+
+    const { category: categoryFromName, cleanName } =
+        extractCategoryFromName(rawName);
+
+    const selectedCategory = document.getElementById("d-category")?.value;
+
+    const finalCategory = selectedCategory || categoryFromName;
+
     const ingredients = [];
 
     document.querySelectorAll(".ingredient-row").forEach(row => {
@@ -509,15 +608,16 @@ async function saveDish() {
     });
 
     const dto = {
-        name: document.getElementById("d-name").value,
+        name: cleanName,
         portionSize: +document.getElementById("d-portion").value,
         calories: +document.getElementById("d-calories").value,
         proteins: +document.getElementById("d-proteins").value,
         fats: +document.getElementById("d-fats").value,
         carbohydrates: +document.getElementById("d-carbs").value,
         ingredients: ingredients,
+        category: finalCategory,   // 🔥 ВАЖНО
         flags: getDishFlagsFromUI(),
-        photos: [] // важно
+        photos: []
     };
 
     const formData = new FormData();
@@ -639,6 +739,9 @@ async function editDish(id) {
         row.querySelector(".ingredient-product").value = ing.productId;
         row.querySelector(".ingredient-amount").value = ing.amount;
     });
+    setTimeout(() => {
+        updateDishFlagsAvailability();
+    }, 0);
 }
 function closeDishView() {
     document.getElementById("dish-detail-section").classList.add("hidden");
@@ -703,8 +806,7 @@ function closeDishView() {
    📍 GLOBAL INPUT HANDLER (ОЧИЩЕН)
 ========================= */
 
-document.addEventListener("input", e => {
-
+document.addEventListener("input", (e) => {
     if (
         e.target.classList.contains("ingredient-amount") ||
         e.target.classList.contains("ingredient-product")
