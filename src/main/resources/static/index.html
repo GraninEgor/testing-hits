@@ -89,7 +89,8 @@
                 <option value="REQUIRES_COOKING">Требует готовки</option>
             </select>
 
-            <input type="file" id="p-photo">
+            <input type="file" id="p-photo" multiple accept="image/*">
+            <div id="p-photo-preview" class="photo-preview"></div>
 
             <img id="preview" class="preview hidden">
 
@@ -151,7 +152,9 @@
             </div>
 
 
-            <input type="file" id="d-photo">
+            <input type="file" id="d-photo" multiple accept="image/*">
+            <div id="d-photo-preview" class="photo-preview"></div>
+
             <img id="d-preview" class="preview hidden">
 
             <button type="button" onclick="calculateDishMacros()">Рассчитать</button>

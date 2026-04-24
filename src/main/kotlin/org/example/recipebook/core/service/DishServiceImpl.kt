@@ -48,22 +48,22 @@ class DishServiceImpl(
         return dishes.map(Dish::toDishDto)
     }
 
-    override fun create(dto: DishCreateDto, file: MultipartFile?): DishDto {
+    override fun create(dto: DishCreateDto, file: List<MultipartFile>?): DishDto {
 
-        val photoUrl = file?.let {
+        val photoUrls: List<String> = file?.map { f ->
             val uploadDir = "uploads/"
-            val fileName = UUID.randomUUID().toString() + "_" + it.originalFilename
+            val fileName = UUID.randomUUID().toString() + "_" + f.originalFilename
 
             val path = Paths.get(uploadDir + fileName)
             Files.createDirectories(path.parent)
-            it.transferTo(path)
+            f.transferTo(path)
 
             "/uploads/$fileName"
-        }
+        } ?: emptyList()
 
         val dish = dto.toEntity().apply {
-            if (photoUrl != null) {
-                this.photos = listOf(photoUrl)
+            if (photoUrls.isNotEmpty()) {
+                this.photos = photoUrls
             }
         }
 

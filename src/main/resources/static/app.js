@@ -8,11 +8,94 @@ const DISHES_API = "/rest/admin-ui/dishes";
 let allProducts = [];
 let editingProductId = null;
 let existingPhoto = null;
+let manualMacros = false;
 let editDishId = null;
+let productFiles = [];
+let dishFiles = [];
 
 /* =========================
    📍 ТАБЫ
 ========================= */
+
+["d-calories", "d-proteins", "d-fats", "d-carbs"].forEach(id => {
+    document.getElementById(id).addEventListener("input", () => {
+        manualMacros = true;
+    });
+});
+
+document.getElementById("p-photo")?.addEventListener("change", e => {
+    const newFiles = Array.from(e.target.files);
+
+    // 👉 добавляем, а не перезаписываем
+    productFiles = [...productFiles, ...newFiles];
+
+    renderProductPreview();
+
+    // 👉 сбрасываем input чтобы можно было выбрать те же файлы снова
+    e.target.value = "";
+});
+
+
+function renderProductPreview() {
+    const container = document.getElementById("p-photo-preview");
+    container.innerHTML = "";
+
+    productFiles.forEach((file, index) => {
+        const url = URL.createObjectURL(file);
+
+        const div = document.createElement("div");
+        div.className = "photo-item";
+
+        div.innerHTML = `
+            <img src="${url}">
+            <button type="button">✕</button>
+        `;
+
+        div.querySelector("button").onclick = () => removeProductPhoto(index);
+
+        container.appendChild(div);
+    });
+}
+
+function removeProductPhoto(index) {
+    productFiles.splice(index, 1);
+    renderProductPreview();
+}
+
+document.getElementById("d-photo")?.addEventListener("change", e => {
+    const newFiles = Array.from(e.target.files);
+
+    dishFiles = [...dishFiles, ...newFiles];
+
+    renderDishPreview();
+
+    e.target.value = "";
+});
+
+function renderDishPreview() {
+    const container = document.getElementById("d-photo-preview");
+    container.innerHTML = "";
+
+    dishFiles.forEach((file, index) => {
+        const url = URL.createObjectURL(file);
+
+        const div = document.createElement("div");
+        div.className = "photo-item";
+
+        div.innerHTML = `
+            <img src="${url}">
+            <button type="button">✕</button>
+        `;
+
+        div.querySelector("button").onclick = () => removeDishPhoto(index);
+
+        container.appendChild(div);
+    });
+}
+function removeDishPhoto(index) {
+    dishFiles.splice(index, 1);
+    renderDishPreview();
+}
 
 function showTab(tab) {
     document.getElementById("products-section").classList.add("hidden");
@@ -105,7 +188,9 @@ async function saveProduct() {
     formData.append("data", new Blob([JSON.stringify(dto)], { type: "application/json" }));
 
     if (fileInput.files.length > 0) {
-        formData.append("file", fileInput.files[0]);
+        productFiles.forEach(file => {
+            formData.append("files", file);
+        });
     }
 
     if (editingProductId) {
@@ -127,6 +212,9 @@ async function saveProduct() {
     document.getElementById("preview").classList.add("hidden");
 
     loadProducts();
+
+    productFiles = [];
+    renderProductPreview();
 }
 
 /* =========================
@@ -188,7 +276,40 @@ async function deleteDish(id) {
 
     loadDishes();
 }
+function calculateDishMacros() {
 
+    if (manualMacros) return; // 👈 не затираем ручные правки
+
+    let calories = 0, proteins = 0, fats = 0, carbs = 0;
+
+    document.querySelectorAll(".ingredient-row").forEach(row => {
+        const id = row.querySelector(".ingredient-product").value;
+        const amount = +row.querySelector(".ingredient-amount").value;
+
+        const product = allProducts.find(p => p.id == id);
+        if (!product) return;
+
+        calories += product.calories * amount / 100;
+        proteins += product.proteins * amount / 100;
+        fats += product.fats * amount / 100;
+        carbs += product.carbohydrates * amount / 100;
+    });
+
+    document.getElementById("d-calories").value = calories.toFixed(1);
+    document.getElementById("d-proteins").value = proteins.toFixed(1);
+    document.getElementById("d-fats").value = fats.toFixed(1);
+    document.getElementById("d-carbs").value = carbs.toFixed(1);
+}
+
+document.addEventListener("input", e => {
+    if (
+        e.target.classList.contains("ingredient-amount") ||
+        e.target.classList.contains("ingredient-product")
+    ) {
+        calculateDishMacros();
+        updateDishFlagsAvailability();
+    }
+});
 
 /* =========================
    📍 PREVIEW IMAGE
@@ -356,6 +477,9 @@ async function saveDish() {
 
     clearDishForm();
     loadDishes();
+
+    dishFiles = [];
+    renderDishPreview();
 }
 
 function clearDishForm() {
@@ -394,7 +518,9 @@ async function createDish() {
     formData.append("data", new Blob([JSON.stringify(dto)], { type: "application/json" }));
 
     if (fileInput.files.length) {
-        formData.append("file", fileInput.files[0]);
+        dishFiles.forEach(file => {
+            formData.append("files", file);
+        });
     }
 
     await fetch(DISHES_API, {

@@ -45,9 +45,9 @@ class DishController(private val dishService: DishService) {
     @PostMapping(consumes = ["multipart/form-data"])
     fun create(
         @RequestPart("data") @Valid dto: DishCreateDto,
-        @RequestPart("file", required = false) file: MultipartFile?
+        @RequestPart("files", required = false) files: List<MultipartFile>?
     ): DishDto {
-        return dishService.create(dto, file)
+        return dishService.create(dto, files)
     }
 
 

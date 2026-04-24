@@ -13,7 +13,7 @@ interface DishService {
     fun getAll(filter: DishFilter, pageable: Pageable): Page<DishDto>
     fun getOne(id: Long): DishDto
     fun getMany(ids: List<Long>): List<DishDto>
-    fun create(dto: DishCreateDto,  file: MultipartFile?): DishDto
+    fun create(dto: DishCreateDto,  file: List<MultipartFile>?): DishDto
 
     @Throws(IOException::class)
     fun patch(id: Long, patchNode: JsonNode): DishDto

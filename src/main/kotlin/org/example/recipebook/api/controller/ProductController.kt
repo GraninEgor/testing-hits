@@ -42,9 +42,9 @@ class ProductController(private val productService: ProductService) {
     @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun create(
         @RequestPart("data") dto: ProductCreateDto,
-        @RequestPart("file", required = false) file: MultipartFile?
+        @RequestPart("files", required = false) files: List<MultipartFile>?
     ): ProductDto {
-        return productService.create(dto, file)
+        return productService.create(dto, files)
     }
 
     @PatchMapping("/{id}/photo", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
