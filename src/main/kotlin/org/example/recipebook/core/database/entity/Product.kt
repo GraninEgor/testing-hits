@@ -47,7 +47,7 @@ class Product(
     @Column(nullable = false)
     var carbohydrates: Double,
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "TEXT", length = 500)
     var composition: String? = null,
 
     @field:NotNull

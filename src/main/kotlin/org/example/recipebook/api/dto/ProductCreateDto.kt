@@ -14,6 +14,7 @@ data class ProductCreateDto(
     val proteins: Double,
     val fats: Double,
     val carbohydrates: Double,
+    @field:Size(max = 500, message = "Состав не должен превышать 500 символов")
     val composition: String?,
     @field:NotNull val category: Category,
     @field:NotNull val cookingRequirement: CookingRequirement,

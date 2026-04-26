@@ -11,14 +11,91 @@ let editDishId = null;
 let manualMacros = false;
 
 // Продукты: новые файлы + существующие URL фото
-// 📌 Бэкенд должен: оставить photos из DTO + добавить файлы из files[]
 let productFiles = [];
 let productExistingPhotos = [];
 
 // Блюда: новые файлы + существующие URL фото
-// 📌 Бэкенд должен: оставить photos из DTO + добавить файлы из files[]
 let dishFiles = [];
 let dishExistingPhotos = [];
+
+/* =========================
+   📍 УТИЛИТЫ: ФОРМАТИРОВАНИЕ
+========================= */
+
+// 🔹 Перевод флагов продукта/блюда
+function formatFeatureFlag(flag) {
+    const map = {
+        "VEGAN": "🌱 Веган",
+        "GLUTEN_FREE": "🌾 Без глютена",
+        "SUGAR_FREE": "🍬 Без сахара"
+    };
+    return map[flag] || flag;
+}
+
+// 🔹 Перевод категории продукта
+function formatProductCategory(cat) {
+    const map = {
+        "FROZEN": "❄️ Замороженный",
+        "MEAT": "🥩 Мясной",
+        "VEGETABLES": "🥕 Овощи",
+        "GREENS": "🌿 Зелень",
+        "SPICES": "🧂 Специи",
+        "GRAINS": "🌾 Крупы",
+        "CANNED": "🥫 Консервы",
+        "LIQUID": "💧 Жидкость",
+        "SWEETS": "🍬 Сладости"
+    };
+    return map[cat] || cat;
+}
+
+// 🔹 Перевод категории блюда
+function formatDishCategory(cat) {
+    const map = {
+        "DESSERT": "🍰 Десерт",
+        "FIRST": "🍲 Первое",
+        "SECOND": "🍽️ Второе",
+        "DRINK": "🥤 Напиток",
+        "SALAD": "🥗 Салат",
+        "SOUP": "🍜 Суп",
+        "SNACK": "🥨 Перекус"
+    };
+    return map[cat] || cat;
+}
+
+// 🔹 Перевод необходимости готовки
+function formatCookingRequirement(req) {
+    const map = {
+        "READY_TO_EAT": "✅ Готовый к употреблению",
+        "SEMI_FINISHED": "🔄 Полуфабрикат",
+        "REQUIRES_COOKING": "🔥 Требует приготовления"
+    };
+    return map[req] || req;
+}
+
+// 🔹 Форматирование даты
+function formatDateTime(dateStr) {
+    if (!dateStr) return "—";
+    try {
+        const date = new Date(dateStr);
+        return date.toLocaleString("ru-RU", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit"
+        });
+    } catch {
+        return dateStr;
+    }
+}
+
+// 🔹 Экранирование для XSS
+function escapeHtml(text) {
+    if (text == null) return "";
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+}
 
 /* =========================
    📍 УТИЛИТЫ ВАЛИДАЦИИ
@@ -104,9 +181,16 @@ function validateDishIngredients(ingredients) {
     return null;
 }
 
-function validateDishMacros(calories, proteins, fats, carbs) {
+function validateDishMacros(calories, proteins, fats, carbs, portionSize) {
     if (calories < 0 || proteins < 0 || fats < 0 || carbs < 0) {
         return "Значения КБЖУ не могут быть отрицательными";
+    }
+    // Валидация суммы БЖУ на 100г готового блюда
+    if (portionSize && portionSize > 0) {
+        const totalMacrosPer100g = (proteins + fats + carbs) / portionSize * 100;
+        if (totalMacrosPer100g > 100) {
+            return "Сумма БЖУ на 100 г блюда не может превышать 100 г (сейчас: " + totalMacrosPer100g.toFixed(1) + " г)";
+        }
     }
     return null;
 }
@@ -158,21 +242,19 @@ function renderProductPreview() {
     if (!container) return;
     container.innerHTML = "";
 
-    // Рендер существующих фото
     productExistingPhotos.forEach((url, index) => {
         const div = document.createElement("div");
         div.className = "photo-item existing";
         div.dataset.type = "existing";
         div.dataset.index = index;
         div.innerHTML = `
-            <img src="${url}" alt="existing photo">
+            <img src="${escapeHtml(url)}" alt="existing photo">
             <button type="button" aria-label="Удалить фото" title="Удалить">✕</button>
         `;
         div.querySelector("button").onclick = () => removeProductExistingPhoto(index);
         container.appendChild(div);
     });
 
-    // Рендер новых файлов
     productFiles.forEach((file, index) => {
         const url = URL.createObjectURL(file);
         const div = document.createElement("div");
@@ -180,7 +262,7 @@ function renderProductPreview() {
         div.dataset.type = "new";
         div.dataset.index = index;
         div.innerHTML = `
-            <img src="${url}" alt="new photo preview">
+            <img src="${escapeHtml(url)}" alt="new photo preview">
             <button type="button" aria-label="Удалить фото" title="Удалить">✕</button>
         `;
         div.querySelector("button").onclick = () => removeProductNewPhoto(index);
@@ -235,21 +317,19 @@ function renderDishPreview() {
     if (!container) return;
     container.innerHTML = "";
 
-    // Рендер существующих фото
     dishExistingPhotos.forEach((url, index) => {
         const div = document.createElement("div");
         div.className = "photo-item existing";
         div.dataset.type = "existing";
         div.dataset.index = index;
         div.innerHTML = `
-            <img src="${url}" alt="existing photo">
+            <img src="${escapeHtml(url)}" alt="existing photo">
             <button type="button" aria-label="Удалить фото" title="Удалить">✕</button>
         `;
         div.querySelector("button").onclick = () => removeDishExistingPhoto(index);
         container.appendChild(div);
     });
 
-    // Рендер новых файлов
     dishFiles.forEach((file, index) => {
         const url = URL.createObjectURL(file);
         const div = document.createElement("div");
@@ -257,7 +337,7 @@ function renderDishPreview() {
         div.dataset.type = "new";
         div.dataset.index = index;
         div.innerHTML = `
-            <img src="${url}" alt="new photo preview">
+            <img src="${escapeHtml(url)}" alt="new photo preview">
             <button type="button" aria-label="Удалить фото" title="Удалить">✕</button>
         `;
         div.querySelector("button").onclick = () => removeDishNewPhoto(index);
@@ -276,6 +356,13 @@ function removeDishNewPhoto(index) {
 }
 
 function showTab(tab) {
+    if (tab !== 'products') {
+        resetProductForm();
+    }
+    if (tab !== 'dishes') {
+        resetDishForm();
+    }
+
     document.getElementById("products-section")?.classList.add("hidden");
     document.getElementById("dishes-section")?.classList.add("hidden");
     document.getElementById("product-detail-section")?.classList.add("hidden");
@@ -323,8 +410,6 @@ async function startEditProduct(id) {
         const p = await res.json();
 
         editingProductId = id;
-
-        // Сброс и заполнение фото
         productFiles = [];
         productExistingPhotos = p.photos || [];
 
@@ -335,6 +420,11 @@ async function startEditProduct(id) {
         document.getElementById("p-carbs").value = p.carbohydrates ?? 0;
         document.getElementById("p-category").value = p.category ?? "";
         document.getElementById("p-cooking").value = p.cookingRequirement ?? "";
+        // 🔹 Состав продукта
+        const compositionEl = document.getElementById("p-composition");
+        if (compositionEl) {
+            compositionEl.value = p.composition ?? "";
+        }
 
         document.querySelectorAll(".p-flag").forEach(cb => cb.checked = false);
         p.flags?.forEach(flag => {
@@ -391,13 +481,16 @@ async function saveProduct() {
         return;
     }
 
-    // 📌 Бэкенд должен: оставить эти photos + добавить файлы из files[]
+    // 🔹 Состав продукта
+    const composition = document.getElementById("p-composition")?.value?.trim() || null;
+
     const dto = {
         name: name,
         calories,
         proteins,
         fats,
         carbohydrates: carbs,
+        composition: composition,  // 🔹 Добавлено
         category: category,
         cookingRequirement: cooking,
         flags: getProductFlags(),
@@ -451,21 +544,8 @@ async function saveProduct() {
 }
 
 function cancelEditDish() {
-    editDishId = null;
-    document.getElementById("dish-form")?.reset();
-    document.getElementById("ingredients").innerHTML = "";
-    document.getElementById("d-photo-preview").innerHTML = "";
-    dishFiles = [];
-    dishExistingPhotos = [];
-    document.getElementById("d-calories").value = "0";
-    document.getElementById("d-proteins").value = "0";
-    document.getElementById("d-fats").value = "0";
-    document.getElementById("d-carbs").value = "0";
-    manualMacros = false;
-    document.querySelectorAll(".d-flag").forEach(cb => {
-        cb.checked = false;
-        cb.disabled = false;
-    });
+    resetDishForm();
+    showTab('dishes');
 }
 
 function extractCategoryFromName(name) {
@@ -478,12 +558,18 @@ function extractCategoryFromName(name) {
         "!суп": "SOUP",
         "!перекус": "SNACK"
     };
-    const parts = name.split(" ");
+    const parts = name.split(/\s+/);
+
     for (const part of parts) {
         if (map[part]) {
+            const escaped = part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const cleanName = name
+                .replace(new RegExp('\\b' + escaped + '\\b', 'g'), '')
+                .replace(/\s+/g, ' ')
+                .trim();
             return {
                 category: map[part],
-                cleanName: name.replace(part, "").trim()
+                cleanName: cleanName
             };
         }
     }
@@ -491,12 +577,8 @@ function extractCategoryFromName(name) {
 }
 
 function cancelEditProduct() {
-    editingProductId = null;
-    productFiles = [];
-    productExistingPhotos = [];
-    document.getElementById("product-form")?.reset();
-    document.getElementById("p-photo-preview").innerHTML = "";
-    document.querySelectorAll(".p-flag").forEach(cb => cb.checked = false);
+    resetProductForm();
+    showTab('products');
 }
 
 /* =========================
@@ -557,10 +639,17 @@ function renderProducts(products) {
         const card = document.createElement("div");
         card.className = "card";
         const firstPhoto = p.photos?.[0];
+
+        // 🔹 Форматированные флаги
+        const flagsHtml = p.flags?.length
+            ? p.flags.map(f => `<span class="flag">${escapeHtml(formatFeatureFlag(f))}</span>`).join(" ")
+            : "";
+
         card.innerHTML = `
-            ${firstPhoto ? `<img src="${firstPhoto}" width="100" alt="${p.name}" loading="lazy">` : ""}
-            <b>${p.name}</b><br>
+            ${firstPhoto ? `<img src="${escapeHtml(firstPhoto)}" width="100" alt="${escapeHtml(p.name)}" loading="lazy">` : ""}
+            <b>${escapeHtml(p.name)}</b><br>
             Ккал: ${p.calories}<br>
+            ${flagsHtml ? `<small>${flagsHtml}</small><br>` : ""}
             <button onclick="openProduct(${p.id})">Открыть</button>
             <button onclick="startEditProduct(${p.id})">Редактировать</button>
             <button onclick="deleteProduct(${p.id})">Удалить</button>
@@ -573,7 +662,7 @@ function renderGallery(photos = []) {
     if (!photos || photos.length === 0) return "<p>Фото нет</p>";
     return `
         <div class="gallery">
-            ${photos.map(p => `<img src="${p}" class="gallery-img" alt="photo" loading="lazy">`).join("")}
+            ${photos.map(p => `<img src="${escapeHtml(p)}" class="gallery-img" alt="photo" loading="lazy">`).join("")}
         </div>
     `;
 }
@@ -593,7 +682,7 @@ async function deleteProduct(id) {
             );
 
             if (usingDishes.length > 0) {
-                const dishNames = usingDishes.map(d => d.name).join(", ");
+                const dishNames = usingDishes.map(d => escapeHtml(d.name)).join(", ");
                 showAlert(
                     "Нельзя удалить продукт, который используется в блюдах: " + dishNames,
                     "warning"
@@ -702,6 +791,12 @@ function addIngredientRow() {
     const container = document.getElementById("ingredients");
     if (!container) return;
 
+    const currentCount = container.querySelectorAll(".ingredient-row").length;
+    if (currentCount >= 50) {
+        showAlert("Максимум 50 ингредиентов в блюде", "warning");
+        return;
+    }
+
     const row = document.createElement("div");
     row.className = "ingredient-row";
 
@@ -776,14 +871,10 @@ function updateDishFlagsAvailability() {
 
     rows.forEach(row => {
         const id = row.querySelector(".ingredient-product")?.value;
-        const product = allProducts.find(p => p.id == id);
+        if (!id) return;  // Пропускаем пустые строки
 
-        if (!product) {
-            canVegan = false;
-            canGluten = false;
-            canSugar = false;
-            return;
-        }
+        const product = allProducts.find(p => p.id == id);
+        if (!product) return;
 
         const flags = product.flags || [];
         canVegan = canVegan && flags.includes("VEGAN");
@@ -805,7 +896,6 @@ function handleDishChange(e) {
         e.target.classList?.contains("ingredient-amount") ||
         e.target.classList?.contains("ingredient-product")
     ) {
-        manualMacros = false;
         calculateDishMacros();
         updateDishFlagsAvailability();
     }
@@ -875,7 +965,7 @@ async function saveDish() {
     const fats = +document.getElementById("d-fats")?.value;
     const carbs = +document.getElementById("d-carbs")?.value;
 
-    const macrosError = validateDishMacros(calories, proteins, fats, carbs);
+    const macrosError = validateDishMacros(calories, proteins, fats, carbs, portionSize);
     if (macrosError) {
         showAlert(macrosError, "error");
         return;
@@ -896,7 +986,6 @@ async function saveDish() {
         }
     }
 
-    // 📌 Бэкенд должен: оставить эти photos + добавить файлы из files[]
     const dto = {
         name: cleanName,
         portionSize: portionSize,
@@ -993,10 +1082,17 @@ function renderDishes(dishes) {
         const card = document.createElement("div");
         card.className = "card";
         const firstPhoto = d.photos?.[0];
+
+        // 🔹 Форматированные флаги блюда
+        const flagsHtml = d.flags?.length
+            ? d.flags.map(f => `<span class="flag">${escapeHtml(formatFeatureFlag(f))}</span>`).join(" ")
+            : "";
+
         card.innerHTML = `
-            ${firstPhoto ? `<img src="${firstPhoto}" width="100" alt="${d.name}" loading="lazy">` : ""}
-            <b>${d.name}</b><br>
+            ${firstPhoto ? `<img src="${escapeHtml(firstPhoto)}" width="100" alt="${escapeHtml(d.name)}" loading="lazy">` : ""}
+            <b>${escapeHtml(d.name)}</b><br>
             Ккал: ${d.calories ?? "-"}<br>
+            ${flagsHtml ? `<small>${flagsHtml}</small><br>` : ""}
             <button onclick="openDish(${d.id})">Открыть</button>
             <button onclick="editDish(${d.id})">Редактировать</button>
             <button onclick="deleteDish(${d.id})">Удалить</button>
@@ -1016,7 +1112,6 @@ async function editDish(id) {
         editDishId = id;
         showTab('dishes');
 
-        // Сброс и заполнение фото
         dishFiles = [];
         dishExistingPhotos = d.photos || [];
 
@@ -1085,20 +1180,25 @@ async function openDish(id) {
         document.getElementById("dish-detail-section")?.classList.remove("hidden");
         document.getElementById("dishes-section")?.classList.add("hidden");
 
+        // 🔹 Форматированные флаги
+        const flagsHtml = d.flags?.length
+            ? d.flags.map(f => `<span class="flag">${escapeHtml(formatFeatureFlag(f))}</span>`).join(", ")
+            : "—";
+
         document.getElementById("dish-detail").innerHTML = `
             <div class="card large">
                 ${renderGallery(d.photos)}
-                <h2>${d.name}</h2>
+                <h2>${escapeHtml(d.name)}</h2>
                 <p><b>Ккал:</b> ${d.calories ?? "-"}</p>
                 <p><b>Б:</b> ${d.proteins ?? "-"}</p>
                 <p><b>Ж:</b> ${d.fats ?? "-"}</p>
                 <p><b>У:</b> ${d.carbohydrates ?? "-"}</p>
                 <p><b>Порция:</b> ${d.portionSize ?? "-"} г</p>
-                <p><b>Категория:</b> ${d.category || "-"}</p>
-                <p><b>Флаги:</b> ${d.flags?.join(", ") || "-"}</p>
+                <p><b>Категория:</b> ${formatDishCategory(d.category)}</p>
+                <p><b>Флаги:</b> ${flagsHtml}</p>
                 <h3>Состав</h3>
                 ${d.ingredients?.length
-            ? d.ingredients.map(i => `<div>${i.productName || "Продукт #" + i.productId} — ${i.amount} г</div>`).join("")
+            ? d.ingredients.map(i => `<div>${escapeHtml(i.productName || "Продукт #" + i.productId)} — ${i.amount} г</div>`).join("")
             : "<p>Состав не указан</p>"
         }
             </div>
@@ -1126,17 +1226,25 @@ async function openProduct(id) {
         document.getElementById("product-detail-section")?.classList.remove("hidden");
         document.getElementById("products-section")?.classList.add("hidden");
 
+        // 🔹 Форматированные значения
+        const flagsHtml = p.flags?.length
+            ? p.flags.map(f => `<span class="flag">${escapeHtml(formatFeatureFlag(f))}</span>`).join(", ")
+            : "—";
+
         document.getElementById("product-detail").innerHTML = `
             <div class="card large">
                 ${renderGallery(p.photos)}
-                <h2>${p.name}</h2>
+                <h2>${escapeHtml(p.name)}</h2>
                 <p><b>Ккал:</b> ${p.calories}</p>
                 <p><b>Белки:</b> ${p.proteins}</p>
                 <p><b>Жиры:</b> ${p.fats}</p>
                 <p><b>Углеводы:</b> ${p.carbohydrates}</p>
-                <p><b>Категория:</b> ${p.category}</p>
-                <p><b>Готовка:</b> ${p.cookingRequirement}</p>
-                <p><b>Флаги:</b> ${p.flags?.join(", ") || "-"}</p>
+                ${p.composition ? `<p><b>Состав:</b> ${escapeHtml(p.composition)}</p>` : ""}
+                <p><b>Категория:</b> ${formatProductCategory(p.category)}</p>
+                <p><b>Готовка:</b> ${formatCookingRequirement(p.cookingRequirement)}</p>
+                <p><b>Флаги:</b> ${flagsHtml}</p>
+                ${p.createdAt ? `<p><small>Создан: ${formatDateTime(p.createdAt)}</small></p>` : ""}
+                ${p.updatedAt ? `<p><small>Обновлён: ${formatDateTime(p.updatedAt)}</small></p>` : ""}
             </div>
         `;
     } catch (err) {
@@ -1164,21 +1272,55 @@ document.addEventListener("input", (e) => {
 ========================= */
 
 document.addEventListener("DOMContentLoaded", () => {
-    // Устанавливаем дефолтные значения 0 для числовых полей
     const numberInputs = [
         "p-calories", "p-proteins", "p-fats", "p-carbs",
         "d-calories", "d-proteins", "d-fats", "d-carbs", "d-portion"
     ];
     numberInputs.forEach(id => {
         const el = document.getElementById(id);
-        if (el) {
-            if (el.tagName === "INPUT") {
-                el.placeholder = "0";
-                if (!el.value) el.value = "0";
-            }
+        if (el && el.tagName === "INPUT") {
+            el.placeholder = "0";
+            if (!el.value) el.value = "0";
         }
     });
 
     loadProducts();
     loadDishes();
 });
+
+/* =========================
+   📍 СБРОС ФОРМ
+========================= */
+
+function resetProductForm() {
+    editingProductId = null;
+    productFiles = [];
+    productExistingPhotos = [];
+
+    document.getElementById("product-form")?.reset();
+    document.getElementById("p-photo-preview").innerHTML = "";
+    document.getElementById("preview")?.classList.add("hidden");
+
+    document.querySelectorAll(".p-flag").forEach(cb => cb.checked = false);
+}
+
+function resetDishForm() {
+    editDishId = null;
+    dishFiles = [];
+    dishExistingPhotos = [];
+    manualMacros = false;
+
+    document.getElementById("dish-form")?.reset();
+    document.getElementById("ingredients").innerHTML = "";
+    document.getElementById("d-photo-preview").innerHTML = "";
+
+    document.getElementById("d-calories").value = "0";
+    document.getElementById("d-proteins").value = "0";
+    document.getElementById("d-fats").value = "0";
+    document.getElementById("d-carbs").value = "0";
+
+    document.querySelectorAll(".d-flag").forEach(cb => {
+        cb.checked = false;
+        cb.disabled = false;
+    });
+}

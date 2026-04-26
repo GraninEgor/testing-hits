@@ -84,6 +84,7 @@ class ProductServiceImpl(
         product.proteins = dto.proteins
         product.fats = dto.fats
         product.carbohydrates = dto.carbohydrates
+        product.composition = dto.composition
         product.category = dto.category
         product.cookingRequirement = dto.cookingRequirement
 

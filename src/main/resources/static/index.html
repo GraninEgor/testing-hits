@@ -4,6 +4,26 @@
     <meta charset="UTF-8">
     <title>Книга рецептов</title>
     <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Минимальные стили для поля состава, чтобы не ломать верстку */
+        .form-group { margin: 12px 0; }
+        .form-group label { display: block; margin-bottom: 4px; font-weight: 500; }
+        #p-composition {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 60px;
+            box-sizing: border-box;
+        }
+        #p-composition:focus {
+            outline: none;
+            border-color: #4CAF50;
+            box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+        }
+    </style>
 </head>
 <body>
 
@@ -72,6 +92,17 @@
             <input id="p-proteins" type="number" placeholder="Белки" required>
             <input id="p-fats" type="number" placeholder="Жиры" required>
             <input id="p-carbs" type="number" placeholder="Углеводы" required>
+
+            <!-- 🔹 ПОЛЕ СОСТАВА ПРОДУКТА -->
+            <div class="form-group">
+                <label for="p-composition">Состав (описание):</label>
+                <textarea
+                        id="p-composition"
+                        name="composition"
+                        rows="3"
+                        placeholder="Перечислите ингредиенты, например: молоко, сахар, ванилин..."
+                ></textarea>
+            </div>
 
             <div class="flags">
                 <label>
@@ -156,10 +187,7 @@
                 <!-- 🔎 ПОИСК БЛЮД -->
                 <div class="dish-search-block">
                     <input id="dish-search" placeholder="Поиск блюда...">
-
-                    <button type="button" onclick="loadDishes()">
-                        Найти
-                    </button>
+                    <button type="button" onclick="loadDishes()">Найти</button>
                 </div>
 
                 <select id="dish-category" onchange="loadDishes()">
@@ -177,7 +205,6 @@
                 <label><input type="checkbox" id="f-gluten" onchange="loadDishes()"> Без глютена</label>
                 <label><input type="checkbox" id="f-sugar" onchange="loadDishes()"> Без сахара</label>
             </div>
-
 
             <input type="file" id="d-photo" multiple accept="image/*">
             <div id="d-photo-preview" class="photo-preview"></div>
@@ -210,19 +237,14 @@
 
     <!-- ================= ДЕТАЛКА ПРОДУКТА ================= -->
     <section id="product-detail-section" class="hidden">
-
         <button onclick="closeProductView()">← Назад</button>
         <div id="product-detail"></div>
-
     </section>
 
     <!-- ================= ДЕТАЛКА БЛЮДА ================= -->
     <section id="dish-detail-section" class="hidden">
-
         <button onclick="closeDishView()">← Назад</button>
-
         <div id="dish-detail"></div>
-
     </section>
 
 </div>
