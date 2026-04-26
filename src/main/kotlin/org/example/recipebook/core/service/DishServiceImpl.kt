@@ -16,6 +16,7 @@ import org.example.recipebook.core.database.repository.ProductRepository
 import org.example.recipebook.core.mapper.toDishDto
 import org.example.recipebook.core.mapper.toEntity
 import org.example.recipebook.core.mapper.updateWithNull
+import org.hibernate.Hibernate
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.domain.Specification
@@ -198,6 +199,10 @@ class DishServiceImpl(
     @Transactional
     override fun delete(id: Long): DishDto? {
         val dish = dishRepository.findById(id).orElse(null) ?: return null
+
+        Hibernate.initialize(dish.ingredients)
+        Hibernate.initialize(dish.photos)
+        Hibernate.initialize(dish.flags)
 
         val dto = dish.toDishDto()
 
