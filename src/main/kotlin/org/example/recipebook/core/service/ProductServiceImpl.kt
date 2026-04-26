@@ -79,7 +79,6 @@ class ProductServiceImpl(
             ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found")
         }
 
-        // 1. Обновляем поля
         product.name = dto.name
         product.calories = dto.calories
         product.proteins = dto.proteins
@@ -87,9 +86,7 @@ class ProductServiceImpl(
         product.carbohydrates = dto.carbohydrates
         product.category = dto.category
         product.cookingRequirement = dto.cookingRequirement
-        product.flags = dto.flags
 
-        // 2. Валидация БЖУ
         val totalBju = (dto.proteins ?: 0.0) + (dto.fats ?: 0.0) + (dto.carbohydrates ?: 0.0)
         if (totalBju > 100) {
             throw ResponseStatusException(
@@ -98,17 +95,8 @@ class ProductServiceImpl(
             )
         }
 
-        // 3. 🔥 РАБОТА С ФОТОГРАФИЯМИ 🔥
-
-        // Текущие фото
-        val currentPhotos = product.photos ?: emptyList()
-
-        // Фото, которые пользователь НЕ удалил (если dto.photos == null → не менял)
-        val photosToKeep = dto.photos
-            ?.filter { it in currentPhotos }
-            ?: currentPhotos
-
-        // Новые файлы
+        val currentPhotos = product.photos.toList()
+        val photosToKeep = dto.photos?.filter { it in currentPhotos } ?: currentPhotos
         val newPhotoUrls = files?.mapNotNull { f ->
             try {
                 val uploadDir = "uploads/"
@@ -117,13 +105,14 @@ class ProductServiceImpl(
                 Files.createDirectories(path.parent)
                 f.transferTo(path)
                 "/uploads/$fileName"
-            } catch (e: Exception) {
-                null
-            }
+            } catch (e: Exception) { null }
         } ?: emptyList()
 
-        // Объединяем
-        product.photos = (photosToKeep + newPhotoUrls).distinct()
+        product.photos = (photosToKeep + newPhotoUrls).distinct().toMutableList()
+
+        dto.flags?.let { newFlags ->
+            product.flags = newFlags.toMutableSet()
+        }
 
         return productRepository.save(product).toProductDto()
     }

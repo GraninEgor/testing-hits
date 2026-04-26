@@ -43,7 +43,7 @@ class Dish(
     @Column(nullable = false)
     var carbohydrates: Double,
 
-    @OneToMany(mappedBy = "dish", cascade = [CascadeType.ALL], orphanRemoval = true)
+    @OneToMany(mappedBy = "dish", cascade = [CascadeType.ALL])
     @field:Size(min = 1)
     var ingredients: MutableList<DishIngredient> = mutableListOf(),
 

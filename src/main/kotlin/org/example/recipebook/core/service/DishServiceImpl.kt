@@ -2,7 +2,6 @@ package org.example.recipebook.core.service;
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
-import jakarta.transaction.Transactional
 import org.example.recipebook.api.dto.DishCreateDto
 import org.example.recipebook.api.dto.DishDto
 import org.example.recipebook.api.dto.DishPatchDto
@@ -10,6 +9,7 @@ import org.example.recipebook.core.database.entity.Dish
 import org.example.recipebook.core.database.entity.DishCategory
 import org.example.recipebook.core.database.entity.DishIngredient
 import org.example.recipebook.core.database.entity.FeatureFlag
+import org.example.recipebook.core.database.repository.DishIngredientRepository
 import org.example.recipebook.core.filter.DishFilter
 import org.example.recipebook.core.database.repository.DishRepository
 import org.example.recipebook.core.database.repository.ProductRepository
@@ -21,6 +21,7 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.domain.Specification
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
 import org.springframework.web.server.ResponseStatusException
 import java.io.IOException
@@ -33,7 +34,8 @@ import java.util.UUID
 class DishServiceImpl(
     private val dishRepository: DishRepository,
     private val objectMapper: ObjectMapper,
-    private val productRepository: ProductRepository
+    private val productRepository: ProductRepository,
+    private val dishIngredientRepository: DishIngredientRepository
 ) : DishService {
 
     override fun getAll(filter: DishFilter, pageable: Pageable): Page<DishDto> {
@@ -66,6 +68,7 @@ class DishServiceImpl(
             if (photoUrls.isNotEmpty()) photos = photoUrls
         }
 
+
         dish.ingredients = dto.ingredients.map { ing ->
             val product = productRepository.findById(ing.productId).orElseThrow()
 
@@ -82,28 +85,16 @@ class DishServiceImpl(
     override fun patch(id: Long, dto: DishPatchDto, files: List<MultipartFile>?): DishDto {
         val dish = dishRepository.findById(id).orElseThrow()
 
-        // 🔹 Обновляем текстовые/числовые поля
         dto.name?.let { dish.name = it }
         dto.portionSize?.let { dish.portionSize = it }
         dto.category?.let { dish.category = it }
-        dto.flags?.let { dish.flags = it }
         dto.calories?.let { dish.calories = it }
         dto.proteins?.let { dish.proteins = it }
         dto.fats?.let { dish.fats = it }
         dto.carbohydrates?.let { dish.carbohydrates = it }
 
-        // 🔹 🔥 РАБОТА С ФОТОГРАФИЯМИ 🔥
-
-        // 1. Текущие фото сущности в БД
-        val currentPhotos = dish.photos ?: emptyList()
-
-        // 2. Фото, которые пользователь НЕ удалил (пришли в DTO и есть в текущих)
-        //    Если dto.photos == null → считаем, что пользователь не менял фото
-        val photosToKeep = dto.photos
-            ?.filter { it in currentPhotos }
-            ?: currentPhotos
-
-        // 3. Загружаем новые файлы и получаем их URL
+        val currentPhotos = dish.photos.toList()
+        val photosToKeep = dto.photos?.filter { it in currentPhotos } ?: currentPhotos
         val newPhotoUrls = files?.mapNotNull { f ->
             try {
                 val uploadDir = "uploads/"
@@ -112,28 +103,47 @@ class DishServiceImpl(
                 Files.createDirectories(path.parent)
                 f.transferTo(path)
                 "/uploads/$fileName"
-            } catch (e: Exception) {
-                null
-            }
+            } catch (e: Exception) { null }
         } ?: emptyList()
+        dish.photos = (photosToKeep + newPhotoUrls).distinct().toMutableList()
 
-        // 4. ОБЪЕДИНЯЕМ: оставшиеся старые + новые
-        dish.photos = (photosToKeep + newPhotoUrls).distinct()
+        // 🔹 Флаги
+        dto.flags?.let { newFlags ->
+            dish.flags = newFlags.toMutableSet()
+        }
 
-        // 🔹 Ингредиенты
         dto.ingredients?.let { newIngredients ->
-            dish.ingredients.clear()
-            dish.ingredients.addAll(
-                newIngredients.map { ing ->
-                    val product = productRepository.findById(ing.productId).orElseThrow()
-                    DishIngredient(dish = dish, product = product, amount = ing.amount)
+            val newProductIds = newIngredients.map { it.productId }.toSet()
+
+            val orphans = dish.ingredients.filter { it.product.id !in newProductIds }
+
+            if (orphans.isNotEmpty()) {
+                dishIngredientRepository.deleteAll(orphans)
+                dish.ingredients.removeAll(orphans)
+            }
+
+            newIngredients.forEach { ing ->
+                val existing = dish.ingredients.find { it.product.id == ing.productId }
+                if (existing != null) {
+                    existing.amount = ing.amount  // обновляем количество
+                } else {
+                    val product = productRepository.findById(ing.productId)
+                        .orElseThrow {
+                            ResponseStatusException(HttpStatus.NOT_FOUND, "Product ${ing.productId} not found")
+                        }
+                    dish.ingredients.add(
+                        DishIngredient(
+                            dish = dish,
+                            product = product,
+                            amount = ing.amount
+                        )
+                    )
                 }
-            )
+            }
         }
 
         recalc(dish)
         validate(dish)
-
         return dishRepository.save(dish).toDishDto()
     }
 
@@ -189,13 +199,10 @@ class DishServiceImpl(
     override fun delete(id: Long): DishDto? {
         val dish = dishRepository.findById(id).orElse(null) ?: return null
 
-        // ✅ Конвертируем в DTO ПОКА сессия активна
         val dto = dish.toDishDto()
 
-        // ✅ Удаляем сущность
         dishRepository.delete(dish)
 
-        // ✅ Возвращаем уже готовый DTO
         return dto
     }
 
