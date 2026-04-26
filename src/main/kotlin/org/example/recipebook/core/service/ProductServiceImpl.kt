@@ -75,7 +75,6 @@ class ProductServiceImpl(
         dto: ProductCreateDto,
         files: List<MultipartFile>?
     ): ProductDto {
-
         val product = productRepository.findById(id).orElseThrow {
             ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found")
         }
@@ -91,11 +90,7 @@ class ProductServiceImpl(
         product.flags = dto.flags
 
         // 2. Валидация БЖУ
-        val totalBju =
-            (dto.proteins ?: 0.0) +
-                    (dto.fats ?: 0.0) +
-                    (dto.carbohydrates ?: 0.0)
-
+        val totalBju = (dto.proteins ?: 0.0) + (dto.fats ?: 0.0) + (dto.carbohydrates ?: 0.0)
         if (totalBju > 100) {
             throw ResponseStatusException(
                 HttpStatus.BAD_REQUEST,
@@ -103,25 +98,32 @@ class ProductServiceImpl(
             )
         }
 
-        // 3. Фото (если есть новые — заменяем или добавляем)
-        if (!files.isNullOrEmpty()) {
-            val savedUrls = files.map { f ->
+        // 3. 🔥 РАБОТА С ФОТОГРАФИЯМИ 🔥
+
+        // Текущие фото
+        val currentPhotos = product.photos ?: emptyList()
+
+        // Фото, которые пользователь НЕ удалил (если dto.photos == null → не менял)
+        val photosToKeep = dto.photos
+            ?.filter { it in currentPhotos }
+            ?: currentPhotos
+
+        // Новые файлы
+        val newPhotoUrls = files?.mapNotNull { f ->
+            try {
                 val uploadDir = "uploads/"
                 val fileName = "${UUID.randomUUID()}_${f.originalFilename}"
-
                 val path = Paths.get(uploadDir + fileName)
                 Files.createDirectories(path.parent)
                 f.transferTo(path)
-
                 "/uploads/$fileName"
+            } catch (e: Exception) {
+                null
             }
+        } ?: emptyList()
 
-            // вариант 1: заменить все фото
-            product.photos = savedUrls
-
-            // вариант 2 (если хочешь ДОБАВЛЯТЬ):
-            // product.photos = (product.photos ?: emptyList()) + savedUrls
-        }
+        // Объединяем
+        product.photos = (photosToKeep + newPhotoUrls).distinct()
 
         return productRepository.save(product).toProductDto()
     }

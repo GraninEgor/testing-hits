@@ -2,6 +2,7 @@ package org.example.recipebook.core.service;
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import jakarta.transaction.Transactional
 import org.example.recipebook.api.dto.DishCreateDto
 import org.example.recipebook.api.dto.DishDto
 import org.example.recipebook.api.dto.DishPatchDto
@@ -79,49 +80,53 @@ class DishServiceImpl(
     }
 
     override fun patch(id: Long, dto: DishPatchDto, files: List<MultipartFile>?): DishDto {
-
         val dish = dishRepository.findById(id).orElseThrow()
 
+        // 🔹 Обновляем текстовые/числовые поля
         dto.name?.let { dish.name = it }
         dto.portionSize?.let { dish.portionSize = it }
         dto.category?.let { dish.category = it }
         dto.flags?.let { dish.flags = it }
-
         dto.calories?.let { dish.calories = it }
         dto.proteins?.let { dish.proteins = it }
         dto.fats?.let { dish.fats = it }
         dto.carbohydrates?.let { dish.carbohydrates = it }
 
-        val photoUrls = files?.map { f ->
-            val uploadDir = "uploads/"
-            val fileName = "${UUID.randomUUID()}_${f.originalFilename}"
+        // 🔹 🔥 РАБОТА С ФОТОГРАФИЯМИ 🔥
 
-            val path = Paths.get(uploadDir + fileName)
-            Files.createDirectories(path.parent)
-            f.transferTo(path)
+        // 1. Текущие фото сущности в БД
+        val currentPhotos = dish.photos ?: emptyList()
 
-            "/uploads/$fileName"
-        }
+        // 2. Фото, которые пользователь НЕ удалил (пришли в DTO и есть в текущих)
+        //    Если dto.photos == null → считаем, что пользователь не менял фото
+        val photosToKeep = dto.photos
+            ?.filter { it in currentPhotos }
+            ?: currentPhotos
 
-        if (!photoUrls.isNullOrEmpty()) {
-            dish.photos = photoUrls
-        }
+        // 3. Загружаем новые файлы и получаем их URL
+        val newPhotoUrls = files?.mapNotNull { f ->
+            try {
+                val uploadDir = "uploads/"
+                val fileName = "${UUID.randomUUID()}_${f.originalFilename}"
+                val path = Paths.get(uploadDir + fileName)
+                Files.createDirectories(path.parent)
+                f.transferTo(path)
+                "/uploads/$fileName"
+            } catch (e: Exception) {
+                null
+            }
+        } ?: emptyList()
 
-        // ✅ ВАЖНО: НЕ ПЕРЕЗАМЕНЯЕМ КОЛЛЕКЦИЮ
+        // 4. ОБЪЕДИНЯЕМ: оставшиеся старые + новые
+        dish.photos = (photosToKeep + newPhotoUrls).distinct()
+
+        // 🔹 Ингредиенты
         dto.ingredients?.let { newIngredients ->
-
             dish.ingredients.clear()
-
             dish.ingredients.addAll(
                 newIngredients.map { ing ->
-                    val product = productRepository.findById(ing.productId)
-                        .orElseThrow()
-
-                    DishIngredient(
-                        dish = dish,
-                        product = product,
-                        amount = ing.amount
-                    )
+                    val product = productRepository.findById(ing.productId).orElseThrow()
+                    DishIngredient(dish = dish, product = product, amount = ing.amount)
                 }
             )
         }
@@ -180,10 +185,18 @@ class DishServiceImpl(
         return dishRepository.saveAll(dishes).map { it.id }
     }
 
+    @Transactional
     override fun delete(id: Long): DishDto? {
-        val dish = dishRepository.findById(id).orElse(null)
-        if (dish != null) dishRepository.delete(dish)
-        return dish?.toDishDto()
+        val dish = dishRepository.findById(id).orElse(null) ?: return null
+
+        // ✅ Конвертируем в DTO ПОКА сессия активна
+        val dto = dish.toDishDto()
+
+        // ✅ Удаляем сущность
+        dishRepository.delete(dish)
+
+        // ✅ Возвращаем уже готовый DTO
+        return dto
     }
 
     override fun deleteMany(ids: List<Long>) =
