@@ -1,10 +1,11 @@
+package org.example.recipebook.core.service
+
 import org.example.recipebook.api.dto.DishIngredientCreateDto
 import org.example.recipebook.core.database.entity.Category
 import org.example.recipebook.core.database.entity.CookingRequirement
 import org.example.recipebook.core.database.entity.Product
 import org.example.recipebook.core.database.repository.ProductRepository
 import org.example.recipebook.core.exception.ProductNotFoundException
-import org.example.recipebook.core.service.DishServiceImpl
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -24,7 +25,7 @@ import kotlin.test.assertFailsWith
 
 @DisplayName("Dish Service Tests")
 @ExtendWith(MockitoExtension::class)
-class DishServiceImplTest {
+class DishServiceTest {
 
     private lateinit var productRepository: ProductRepository
     private lateinit var dishService: DishServiceImpl
@@ -41,12 +42,17 @@ class DishServiceImplTest {
     }
 
     @Test
-    @DisplayName("empty list returns zero macros")
-    fun `should return zero macros when ingredients list is empty`() {
+    @DisplayName("empty list returns zero")
+    fun `should return zero when ingredients list is empty`() {
+        // ARRANGE
         val emptyComposition = emptyList<DishIngredientCreateDto>()
+
+        // ACT
         val result = dishService.calculateCalories(emptyComposition)
 
-        assertAll("All macros are zero",
+         // ASSERT
+        assertAll(
+            "All are zero",
             { assertEquals(0.0, result.calories, "calories") },
             { assertEquals(0.0, result.protein, "protein") },
             { assertEquals(0.0, result.fat, "fat") },
@@ -58,40 +64,41 @@ class DishServiceImplTest {
     @CsvSource(
         delimiter = '|',
         value = [
-            "150.0   | 300.0   | 15.0    | 7.5     | 45.0",
-            "33.33   | 66.66   | 3.333   | 1.6665  | 9.999",
+            "150.0   | 270.0   | 18.0    | 9.0     | 37.5",
+            "42.5    | 76.5    | 5.1     | 2.55    | 10.625",
             "0.0     | 0.0     | 0.0     | 0.0     | 0.0",
-            "1e-10   | 2e-10   | 1e-11   | 5e-12   | 3e-10",
-            "1e10    | 2e10    | 1e9     | 5e8     | 3e9"
+            "2.5e-10 | 4.5e-10 | 3.0e-11 | 1.5e-11 | 6.25e-10",
+            "5e9     | 9e9     | 6e8     | 3e8     | 1.25e9"
         ]
     )
-    fun `should calculate correct macros for single product with amount {0}`(
+    fun `should calculate correct for single product with amount {0}`(
         amount: Double,
         expectedCal: Double,
         expectedPro: Double,
         expectedFat: Double,
         expectedCarb: Double
     ) {
-        // Arrange
+        // ARRANGE
         val productId = 1L
         val product = createTestProduct(
             id = productId,
-            name = "Test Product",
-            calories = 200.0,
-            proteins = 10.0,
-            fats = 5.0,
-            carbohydrates = 30.0
+            name = "Test Product Alpha",
+            calories = 180.0,
+            proteins = 12.0,
+            fats = 6.0,
+            carbohydrates = 25.0
         )
         whenever(productRepository.findById(productId)).thenReturn(Optional.of(product))
 
         val composition = listOf(DishIngredientCreateDto(productId, amount))
 
-        // Act
+        // ACT
         val result = dishService.calculateCalories(composition)
 
-        // Assert
+         // ASSERT
         val delta = 1e-9
-        assertAll("Verify macros for amount = $amount",
+        assertAll(
+            "Verify for amount = $amount",
             { assertEquals(expectedCal, result.calories, delta, "calories") },
             { assertEquals(expectedPro, result.protein, delta, "protein") },
             { assertEquals(expectedFat, result.fat, delta, "fat") },
@@ -101,44 +108,48 @@ class DishServiceImplTest {
 
     @Test
     @DisplayName("correct calculation for multiple products")
-    fun `should sum macros correctly when multiple products are provided`() {
-        // Arrange
+    fun `should sum correctly when multiple products are provided`() {
+        // ARRANGE
         val product1 = createTestProduct(
             id = 1L,
-            name = "Product One",
-            calories = 100.0,
-            proteins = 5.0,
-            fats = 2.0,
-            carbohydrates = 20.0
+            name = "Product 1",
+            calories = 120.0,
+            proteins = 6.0,
+            fats = 3.0,
+            carbohydrates = 18.0
         )
         val product2 = createTestProduct(
-            id = 2L,
-            name = "Product Two",
-            calories = 300.0,
-            proteins = 15.0,
-            fats = 10.0,
-            carbohydrates = 40.0
+            id = 20L,
+            name = "Product 2",
+            calories = 250.0,
+            proteins = 12.0,
+            fats = 8.0,
+            carbohydrates = 35.0
         )
 
-        whenever(productRepository.findById(1L)).thenReturn(Optional.of(product1))
-        whenever(productRepository.findById(2L)).thenReturn(Optional.of(product2))
+        whenever(productRepository.findById(10L)).thenReturn(Optional.of(product1))
+        whenever(productRepository.findById(20L)).thenReturn(Optional.of(product2))
 
         val composition = listOf(
-            DishIngredientCreateDto(1L, 100.0),
-            DishIngredientCreateDto(2L, 50.0)
+            DishIngredientCreateDto(10L, 100.0),
+            DishIngredientCreateDto(20L, 50.0)
         )
 
-        // Act
+        // ACT
         val result = dishService.calculateCalories(composition)
 
-        // Expected
-        val expectedCal = 100.0 + 300.0 * 0.5
-        val expectedPro = 5.0 + 15.0 * 0.5
-        val expectedFat = 2.0 + 10.0 * 0.5
-        val expectedCarb = 20.0 + 40.0 * 0.5
+        // calories = 120.0×1.0 + 250.0×0.5 = 120 + 125 = 245.0
+        // proteins = 6.0×1.0 + 12.0×0.5 = 6 + 6 = 12.0
+        // fats = 3.0×1.0 + 8.0×0.5 = 3 + 4 = 7.0
+        // carbs = 18.0×1.0 + 35.0×0.5 = 18 + 17.5 = 35.5
+        val expectedCal = 245.0
+        val expectedPro = 12.0
+        val expectedFat = 7.0
+        val expectedCarb = 35.5
 
-        // Assert
-        assertAll("Verify sum of macros",
+         // ASSERT
+        assertAll(
+            "Verify sum",
             { assertEquals(expectedCal, result.calories, "calories") },
             { assertEquals(expectedPro, result.protein, "protein") },
             { assertEquals(expectedFat, result.fat, "fat") },
@@ -147,7 +158,7 @@ class DishServiceImplTest {
     }
 
     @ParameterizedTest(name = "Non-existent ID = {0}")
-    @CsvSource(value = ["999", "-1", "123456789"])
+    @CsvSource(value = ["888", "-5", "99999"])
     fun `should throw ProductNotFoundException when product with id {0} is not found`(productId: Long) {
         whenever(productRepository.findById(productId)).thenReturn(Optional.empty())
 
@@ -162,17 +173,17 @@ class DishServiceImplTest {
     @Test
     @DisplayName("throws exception when one product is missing")
     fun `should throw exception when at least one product in list is not found`() {
-        // Arrange
+        // ARRANGE
         val validId = 1L
-        val invalidId = 999L
+        val invalidId = 2L
 
         val validProduct = createTestProduct(
             id = validId,
             name = "Valid Product",
-            calories = 100.0,
-            proteins = 5.0,
-            fats = 2.0,
-            carbohydrates = 20.0
+            calories = 120.0,
+            proteins = 6.0,
+            fats = 3.0,
+            carbohydrates = 18.0
         )
 
         whenever(productRepository.findById(validId)).thenReturn(Optional.of(validProduct))
@@ -183,7 +194,7 @@ class DishServiceImplTest {
             DishIngredientCreateDto(invalidId, 30.0)
         )
 
-        // Act & Assert
+        // ACT & ASSERT
         val exception = assertFailsWith<ProductNotFoundException> {
             dishService.calculateCalories(composition)
         }
@@ -199,26 +210,27 @@ class DishServiceImplTest {
         expectedFat: Double,
         expectedCarb: Double
     ) {
-        // Arrange
-        val productId = 1L
+        // ARRANGE
+        val productId = 10L
         val product = createTestProduct(
             id = productId,
             name = "Boundary Product",
-            calories = 2.0,
-            proteins = 0.1,
-            fats = 0.05,
-            carbohydrates = 0.3
+            calories = 3.0,
+            proteins = 0.2,
+            fats = 0.08,
+            carbohydrates = 0.4
         )
         whenever(productRepository.findById(productId)).thenReturn(Optional.of(product))
 
         val composition = listOf(DishIngredientCreateDto(productId, amount))
 
-        // Act
+        // ACT
         val result = dishService.calculateCalories(composition)
 
-        // Assert
+         // ASSERT
         val delta = 1e-12
-        assertAll("Boundary values",
+        assertAll(
+            "Boundary values",
             { assertEquals(expectedCal, result.calories, delta, "calories") },
             { assertEquals(expectedPro, result.protein, delta, "protein") },
             { assertEquals(expectedFat, result.fat, delta, "fat") },
@@ -230,11 +242,11 @@ class DishServiceImplTest {
         @JvmStatic
         fun realisticBoundaryValues(): Stream<Arguments> = Stream.of(
             Arguments.of(0.0, 0.0, 0.0, 0.0, 0.0),
-            Arguments.of(0.001, 2.0E-5, 1.0E-6, 5.0E-7, 3.0E-6),
-            Arguments.of(1_000_000.0, 20_000.0, 1_000.0, 500.0, 3_000.0)
+            Arguments.of(0.001, 3.0E-5, 2.0E-6, 8.0E-7, 4.0E-6),
+            Arguments.of(2_000_000.0, 60_000.0, 4_000.0, 1_600.0, 8_000.0)
         )
 
-        fun createTestProduct(
+        private fun createTestProduct(
             id: Long,
             name: String,
             calories: Double,
