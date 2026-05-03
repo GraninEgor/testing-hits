@@ -7,9 +7,6 @@ import org.example.recipebook.core.database.entity.DishCategory
 import org.example.recipebook.core.database.entity.FeatureFlag
 import java.time.LocalDateTime
 
-/**
- * DTO for [org.example.recipebook.core.database.entity.Dish]
- */
 data class DishDto(
     val id: Long,
     @field:Size(min = 2) @field:NotBlank val name: String,
@@ -22,5 +19,6 @@ data class DishDto(
     val portionSize: Double,
     @field:NotNull val category: DishCategory,
     val flags: Set<FeatureFlag>,
-    val createdAt: LocalDateTime
+    val createdAt: LocalDateTime,
+    val updatedAt: LocalDateTime
 )

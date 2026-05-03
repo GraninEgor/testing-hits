@@ -6,6 +6,7 @@ import org.example.recipebook.api.dto.DishIngredientDto
 import org.example.recipebook.core.database.entity.Dish
 import org.example.recipebook.core.database.entity.DishIngredient
 import org.example.recipebook.core.database.entity.FeatureFlag
+import java.time.LocalDateTime
 
 fun Dish.toDishDto() = DishDto(
     id = this.id,
@@ -25,7 +26,8 @@ fun Dish.toDishDto() = DishDto(
     portionSize = this.portionSize,
     category = this.category,
     flags = this.flags,
-    createdAt = this.createdAt
+    createdAt = this.createdAt,
+    updatedAt = this.updatedAt ?: createdAt
 )
 
 fun DishDto.toEntity(): Dish {

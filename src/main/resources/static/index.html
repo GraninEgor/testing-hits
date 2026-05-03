@@ -88,9 +88,13 @@
 
             <input id="p-name" placeholder="Название" required>
 
+            <p>Калории</p>
             <input id="p-calories" type="number" placeholder="Ккал" required>
+            <p>Белки</p>
             <input id="p-proteins" type="number" placeholder="Белки" required>
+            <p>Жиры</p>
             <input id="p-fats" type="number" placeholder="Жиры" required>
+            <p>Углеводы</p>
             <input id="p-carbs" type="number" placeholder="Углеводы" required>
 
             <!-- 🔹 ПОЛЕ СОСТАВА ПРОДУКТА -->
@@ -176,12 +180,18 @@
             <button type="button" onclick="addIngredientRow()">Добавить ингредиент</button>
 
             <div class="macros">
+                <p>Калории</p>
                 <input id="d-calories" placeholder="Ккал">
+                <p>Белки</p>
                 <input id="d-proteins" placeholder="Белки">
+                <p>Жиры</p>
                 <input id="d-fats" placeholder="Жиры">
+                <p>Углеводы</p>
                 <input id="d-carbs" placeholder="Углеводы">
             </div>
 
+            <hr>
+            <p>Поиск</p>
             <!-- 🔽 ФИЛЬТРЫ БЛЮД -->
             <div>
                 <!-- 🔎 ПОИСК БЛЮД -->
@@ -205,13 +215,13 @@
                 <label><input type="checkbox" id="f-gluten" onchange="loadDishes()"> Без глютена</label>
                 <label><input type="checkbox" id="f-sugar" onchange="loadDishes()"> Без сахара</label>
             </div>
-
+            <hr>
+            <p>Фото</p>
             <input type="file" id="d-photo" multiple accept="image/*">
             <div id="d-photo-preview" class="photo-preview"></div>
 
             <img id="d-preview" class="preview hidden">
 
-            <button type="button" onclick="calculateDishMacros()">Рассчитать</button>
             <button type="button" onclick="saveDish()">Сохранить блюдо</button>
             <button type="button" onclick="cancelEditDish()">Отмена</button>
 

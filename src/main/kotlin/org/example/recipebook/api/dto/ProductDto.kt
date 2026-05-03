@@ -6,10 +6,8 @@ import jakarta.validation.constraints.Size
 import org.example.recipebook.core.database.entity.Category
 import org.example.recipebook.core.database.entity.CookingRequirement
 import org.example.recipebook.core.database.entity.FeatureFlag
+import java.time.LocalDateTime
 
-/**
- * DTO for [org.example.recipebook.core.database.entity.Product]
- */
 data class ProductDto(
     val id: Long,
     val name: String,
@@ -21,5 +19,7 @@ data class ProductDto(
     val composition: String?,
     val category: Category,
     val cookingRequirement: CookingRequirement,
-    val flags: Set<FeatureFlag>
+    val flags: Set<FeatureFlag>,
+    val createdAt: LocalDateTime,
+    val updatedAt: LocalDateTime
 )

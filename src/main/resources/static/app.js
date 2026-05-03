@@ -558,21 +558,28 @@ function extractCategoryFromName(name) {
         "!суп": "SOUP",
         "!перекус": "SNACK"
     };
-    const parts = name.split(/\s+/);
 
-    for (const part of parts) {
-        if (map[part]) {
-            const escaped = part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Разбиваем название на слова (по пробелам)
+    const words = name.trim().split(/\s+/);
+
+    // Ищем первый макрос в списке слов
+    for (const word of words) {
+        if (map[word]) {
+            // ✅ Нашли макрос — удаляем его из названия
+            // replace() удаляет только первое вхождение — как и нужно по ТЗ
             const cleanName = name
-                .replace(new RegExp('\\b' + escaped + '\\b', 'g'), '')
-                .replace(/\s+/g, ' ')
-                .trim();
+                .replace(word, '')           // удаляем макрос
+                .replace(/\s+/g, ' ')        // заменяем множественные пробелы на один
+                .trim();                      // убираем пробелы по краям
+
             return {
-                category: map[part],
+                category: map[word],
                 cleanName: cleanName
             };
         }
     }
+
+    // Макрос не найден — возвращаем как есть
     return { category: null, cleanName: name };
 }
 
@@ -1185,6 +1192,22 @@ async function openDish(id) {
             ? d.flags.map(f => `<span class="flag">${escapeHtml(formatFeatureFlag(f))}</span>`).join(", ")
             : "—";
 
+        // 🔹 Логика отображения дат: если не обновлялось — показываем сообщение
+        const createdAtHtml = d.createdAt ? `<p><small>📅 Создано: ${formatDateTime(d.createdAt)}</small></p>` : "";
+
+        let updatedAtHtml = "";
+        if (d.updatedAt) {
+            // Сравниваем даты: если совпадают с createdAt — блюдо не обновлялось
+            const created = new Date(d.createdAt);
+            const updated = new Date(d.updatedAt);
+
+            if (d.createdAt === d.updatedAt || created.getTime() === updated.getTime()) {
+                updatedAtHtml = `<p><small>✏️ Обновлено: не обновлялось</small></p>`;
+            } else {
+                updatedAtHtml = `<p><small>✏️ Обновлено: ${formatDateTime(d.updatedAt)}</small></p>`;
+            }
+        }
+
         document.getElementById("dish-detail").innerHTML = `
             <div class="card large">
                 ${renderGallery(d.photos)}
@@ -1201,6 +1224,9 @@ async function openDish(id) {
             ? d.ingredients.map(i => `<div>${escapeHtml(i.productName || "Продукт #" + i.productId)} — ${i.amount} г</div>`).join("")
             : "<p>Состав не указан</p>"
         }
+                <!-- 🔹 ДАТЫ -->
+                ${createdAtHtml}
+                ${updatedAtHtml}
             </div>
         `;
     } catch (err) {
@@ -1231,6 +1257,21 @@ async function openProduct(id) {
             ? p.flags.map(f => `<span class="flag">${escapeHtml(formatFeatureFlag(f))}</span>`).join(", ")
             : "—";
 
+        // 🔹 Логика отображения дат: если не обновлялось — показываем сообщение
+        const createdAtHtml = p.createdAt ? `<p><small>📅 Создано: ${formatDateTime(p.createdAt)}</small></p>` : "";
+
+        let updatedAtHtml = "";
+        if (p.updatedAt) {
+            const created = new Date(p.createdAt);
+            const updated = new Date(p.updatedAt);
+
+            if (p.createdAt === p.updatedAt || created.getTime() === updated.getTime()) {
+                updatedAtHtml = `<p><small>✏️ Обновлено: не обновлялось</small></p>`;
+            } else {
+                updatedAtHtml = `<p><small>✏️ Обновлено: ${formatDateTime(p.updatedAt)}</small></p>`;
+            }
+        }
+
         document.getElementById("product-detail").innerHTML = `
             <div class="card large">
                 ${renderGallery(p.photos)}
@@ -1243,8 +1284,8 @@ async function openProduct(id) {
                 <p><b>Категория:</b> ${formatProductCategory(p.category)}</p>
                 <p><b>Готовка:</b> ${formatCookingRequirement(p.cookingRequirement)}</p>
                 <p><b>Флаги:</b> ${flagsHtml}</p>
-                ${p.createdAt ? `<p><small>Создан: ${formatDateTime(p.createdAt)}</small></p>` : ""}
-                ${p.updatedAt ? `<p><small>Обновлён: ${formatDateTime(p.updatedAt)}</small></p>` : ""}
+                ${createdAtHtml}
+                ${updatedAtHtml}
             </div>
         `;
     } catch (err) {
@@ -1252,7 +1293,6 @@ async function openProduct(id) {
         showAlert("Ошибка при отображении продукта", "error");
     }
 }
-
 /* =========================
    📍 GLOBAL INPUT HANDLER
 ========================= */

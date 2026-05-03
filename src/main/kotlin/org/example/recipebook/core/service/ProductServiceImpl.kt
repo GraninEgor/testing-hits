@@ -75,6 +75,7 @@ class ProductServiceImpl(
         dto: ProductCreateDto,
         files: List<MultipartFile>?
     ): ProductDto {
+        println(dto)
         val product = productRepository.findById(id).orElseThrow {
             ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found")
         }

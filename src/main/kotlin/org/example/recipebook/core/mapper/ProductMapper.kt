@@ -16,7 +16,9 @@ fun Product.toProductDto() = ProductDto(
     composition = this.composition,
     category = this.category,
     cookingRequirement = this.cookingRequirement,
-    flags = this.flags
+    flags = this.flags,
+    createdAt = this.createdAt,
+    updatedAt = this.updatedAt ?: createdAt
 )
 
 fun ProductDto.toEntity() = Product(
