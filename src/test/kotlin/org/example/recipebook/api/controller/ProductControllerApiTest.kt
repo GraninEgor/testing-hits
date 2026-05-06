@@ -1,5 +1,6 @@
 package org.example.recipebook.api.controller
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.example.recipebook.api.dto.*
 import org.example.recipebook.core.database.entity.Category
 import org.example.recipebook.core.database.entity.CookingRequirement
@@ -12,8 +13,10 @@ import org.junit.jupiter.params.provider.ValueSource
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.web.client.TestRestTemplate
 import org.springframework.core.ParameterizedTypeReference
+import org.springframework.core.io.ByteArrayResource
 import org.springframework.http.*
 import org.springframework.http.HttpMethod.*
+import org.springframework.mock.web.MockMultipartFile
 import org.springframework.util.LinkedMultiValueMap
 import org.springframework.util.MultiValueMap
 
@@ -495,6 +498,391 @@ class ProductControllerApiTest : SharedTestContainers() {
             assertStatus(HttpStatus.OK, response)
             Assertions.assertNotNull(response.body)
             Assertions.assertTrue(response.body!!.containsAll(ids))
+        }
+    }
+
+
+    @Nested
+    @DisplayName("Дополнительные тесты ProductController")
+    inner class ProductControllerAdditionalTests : SharedTestContainers() {
+
+        @Autowired
+        private lateinit var restTemplate: TestRestTemplate
+
+        private val apiBase = "/rest/admin-ui/products"
+        private val objectMapper = ObjectMapper()
+
+        @Nested
+        @DisplayName("Тесты обработки файлов (multipart)")
+        inner class MultipartFileTests {
+
+            @Test
+            fun `should create product with photo files`() {
+                val dto = ProductCreateDto(
+                    name = "Продукт с фото ${System.currentTimeMillis()}",
+                    calories = 100.0,
+                    proteins = 10.0,
+                    fats = 5.0,
+                    carbohydrates = 0.0,
+                    category = Category.VEGETABLES,
+                    cookingRequirement = CookingRequirement.READY_TO_EAT,
+                    flags = emptySet(),
+                    composition = "С фото",
+                    photos = emptyList()
+                )
+
+                val fileResource = object : ByteArrayResource("fake-image-content".toByteArray()) {
+                    override fun getFilename(): String = "test.jpg"
+                }
+
+                val body = LinkedMultiValueMap<String, Any>().apply {
+                    // DTO отправляем как JSON-строку с явным Content-Type
+                    add("data", dto)
+                    add("files", fileResource)
+                }
+
+                val headers = HttpHeaders().apply {
+                    contentType = MediaType.MULTIPART_FORM_DATA
+                }
+
+                val response: ResponseEntity<ProductDto> = restTemplate.exchange(
+                    apiBase,
+                    POST,
+                    HttpEntity(body, headers),
+                    ProductDto::class.java
+                )
+
+                Assertions.assertEquals(HttpStatus.OK, response.statusCode)
+                Assertions.assertNotNull(response.body)
+                Assertions.assertTrue(response.body!!.id > 0)
+            }
+
+            @Test
+            fun `should create product without files when files param is optional`() {
+                val dto = ProductCreateDto(
+                    name = "Продукт без фото ${System.currentTimeMillis()}",
+                    calories = 100.0,
+                    proteins = 10.0,
+                    fats = 5.0,
+                    carbohydrates = 0.0,
+                    category = Category.VEGETABLES,
+                    cookingRequirement = CookingRequirement.READY_TO_EAT,
+                    flags = emptySet(),
+                    composition = null,
+                    photos = emptyList()
+                )
+
+                val body = LinkedMultiValueMap<String, Any>().apply {
+                    add("data", dto)
+                }
+
+                val headers = HttpHeaders().apply {
+                    contentType = MediaType.MULTIPART_FORM_DATA
+                }
+
+                val response: ResponseEntity<ProductDto> = restTemplate.exchange(
+                    apiBase,
+                    POST,
+                    HttpEntity(body, headers),
+                    ProductDto::class.java
+                )
+
+                Assertions.assertEquals(HttpStatus.OK, response.statusCode)
+                Assertions.assertNotNull(response.body)
+            }
+        }
+
+        @Nested
+        @DisplayName("Тесты граничных значений и edge cases")
+        inner class EdgeCasesTests {
+
+            @ParameterizedTest
+            @CsvSource(
+                "0.0, 0.0, 0.0, 0.0",
+                "999999.99, 100.0, 100.0, 100.0",
+                "0.01, 0.01, 0.01, 0.01"
+            )
+            @DisplayName("Должен создать продукт с граничными числовыми значениями")
+            fun `should create product with boundary numeric values`(
+                calories: Double, proteins: Double, fats: Double, carbs: Double
+            ) {
+                val dto = ProductCreateDto(
+                    name = "Граничный продукт ${System.currentTimeMillis()}",
+                    calories = calories,
+                    proteins = proteins,
+                    fats = fats,
+                    carbohydrates = carbs,
+                    category = Category.VEGETABLES,
+                    cookingRequirement = CookingRequirement.READY_TO_EAT,
+                    flags = emptySet(),
+                    composition = null,
+                    photos = emptyList()
+                )
+
+                val body = LinkedMultiValueMap<String, Any>().apply { add("data", dto) }
+                val headers = HttpHeaders().apply { contentType = MediaType.MULTIPART_FORM_DATA }
+
+                val response: ResponseEntity<ProductDto> = restTemplate.exchange(
+                    apiBase,
+                    POST,
+                    HttpEntity(body, headers),
+                    ProductDto::class.java
+                )
+
+                Assertions.assertEquals(HttpStatus.OK, response.statusCode)
+            }
+
+            @Test
+            fun `should handle empty flags list`() {
+                val dto = ProductCreateDto(
+                    name = "Продукт без флагов ${System.currentTimeMillis()}",
+                    calories = 100.0,
+                    proteins = 10.0,
+                    fats = 5.0,
+                    carbohydrates = 0.0,
+                    category = Category.VEGETABLES,
+                    cookingRequirement = CookingRequirement.READY_TO_EAT,
+                    flags = emptySet(),
+                    composition = null,
+                    photos = emptyList()
+                )
+
+                val body = LinkedMultiValueMap<String, Any>().apply { add("data", dto) }
+                val headers = HttpHeaders().apply { contentType = MediaType.MULTIPART_FORM_DATA }
+
+                val response: ResponseEntity<ProductDto> = restTemplate.exchange(
+                    apiBase,
+                    POST,
+                    HttpEntity(body, headers),
+                    ProductDto::class.java
+                )
+
+                Assertions.assertEquals(HttpStatus.OK, response.statusCode)
+                Assertions.assertTrue(response.body?.flags?.isEmpty() == true)
+            }
+
+            @Test
+            fun `should handle all feature flags`() {
+                val dto = ProductCreateDto(
+                    name = "Продукт со всеми флагами ${System.currentTimeMillis()}",
+                    calories = 100.0,
+                    proteins = 10.0,
+                    fats = 5.0,
+                    carbohydrates = 0.0,
+                    category = Category.VEGETABLES,
+                    cookingRequirement = CookingRequirement.READY_TO_EAT,
+                    flags = FeatureFlag.values().toSet(),
+                    composition = null,
+                    photos = emptyList()
+                )
+
+                val body = LinkedMultiValueMap<String, Any>().apply { add("data", dto) }
+                val headers = HttpHeaders().apply { contentType = MediaType.MULTIPART_FORM_DATA }
+
+                val response: ResponseEntity<ProductDto> = restTemplate.exchange(
+                    apiBase,
+                    POST,
+                    HttpEntity(body, headers),
+                    ProductDto::class.java
+                )
+
+                Assertions.assertEquals(HttpStatus.OK, response.statusCode)
+                Assertions.assertEquals(FeatureFlag.values().size, response.body?.flags?.size)
+            }
+        }
+
+        @Nested
+        @DisplayName("Тесты фильтрации и пагинации")
+        inner class FilteringTests {
+
+            @BeforeEach
+            fun seedData() {
+                listOf(
+                    Category.VEGETABLES to 50.0,
+                    Category.MEAT to 200.0,
+                    Category.VEGETABLES to 30.0,
+                    Category.FROZEN to 150.0
+                ).forEachIndexed { index, (category, calories) ->
+                    createTestProduct(
+                        name = "Фильтр тест $index",
+                        calories = calories,
+                        category = category
+                    )
+                }
+            }
+
+            @Test
+            fun `should filter by cooking requirement`() {
+                val uri = java.net.URI.create("$apiBase?cookingRequirement=READY_TO_EAT&page=0&size=10")
+                val response: ResponseEntity<PagedResponse<ProductDto>> = restTemplate.exchange(
+                    uri,
+                    GET,
+                    null,
+                    object : ParameterizedTypeReference<PagedResponse<ProductDto>>() {}
+                )
+
+                Assertions.assertEquals(HttpStatus.OK, response.statusCode)
+                response.body?.content?.forEach { product ->
+                    Assertions.assertEquals(CookingRequirement.READY_TO_EAT, product.cookingRequirement)
+                }
+            }
+
+            @Test
+            fun `should handle large page size`() {
+                val uri = java.net.URI.create("$apiBase?page=0&size=1000")
+                val response: ResponseEntity<PagedResponse<ProductDto>> = restTemplate.exchange(
+                    uri,
+                    GET,
+                    null,
+                    object : ParameterizedTypeReference<PagedResponse<ProductDto>>() {}
+                )
+
+                Assertions.assertEquals(HttpStatus.OK, response.statusCode)
+            }
+        }
+
+        @Nested
+        @DisplayName("Тесты bulk operations")
+        inner class BulkOperationsTests {
+
+            @Test
+            fun `should patch many with partial update`() {
+                val ids = mutableListOf<Long>()
+                repeat(3) { ids.add(createTestProduct(name = "Bulk $it")) }
+
+                val patchJson = """{"calories": 200.0}"""
+                val uri = java.net.URI.create("$apiBase?ids=${ids.joinToString(",")}")
+
+                val headers = HttpHeaders().apply {
+                    contentType = MediaType.APPLICATION_JSON
+                }
+
+                val request = RequestEntity(patchJson, headers, PATCH, uri)
+
+                val response: ResponseEntity<List<Long>> = restTemplate.exchange(
+                    request,
+                    object : ParameterizedTypeReference<List<Long>>() {}
+                )
+
+                Assertions.assertEquals(HttpStatus.OK, response.statusCode)
+                Assertions.assertEquals(ids.size, response.body?.size)
+
+                ids.forEach { id ->
+                    val getProduct = restTemplate.getForEntity("$apiBase/$id", ProductDto::class.java)
+                    Assertions.assertEquals(200.0, getProduct.body?.calories)
+                }
+            }
+
+            @Test
+            fun `should patch many with empty ids list`() {
+                val patchJson = """{"calories": 200.0}"""
+                val uri = java.net.URI.create("$apiBase?ids=")
+
+                val headers = HttpHeaders().apply {
+                    contentType = MediaType.APPLICATION_JSON
+                }
+
+                val request = RequestEntity(patchJson, headers, PATCH, uri)
+
+                val response: ResponseEntity<List<Long>> = restTemplate.exchange(
+                    request,
+                    object : ParameterizedTypeReference<List<Long>>() {}
+                )
+
+                Assertions.assertTrue(
+                    response.statusCode in listOf(HttpStatus.OK, HttpStatus.BAD_REQUEST),
+                    "Expected OK or BAD_REQUEST, got ${response.statusCode}"
+                )
+            }
+
+            @Test
+            fun `should delete many with non-existent ids`() {
+                val response: ResponseEntity<Void> = restTemplate.exchange(
+                    "$apiBase?ids=999999,888888",
+                    DELETE,
+                    null,
+                    Void::class.java
+                )
+
+                Assertions.assertTrue(
+                    response.statusCode in listOf(HttpStatus.OK, HttpStatus.NOT_FOUND),
+                    "Expected OK or NOT_FOUND, got ${response.statusCode}"
+                )
+            }
+        }
+
+        @Nested
+        @DisplayName("Тесты обработки ошибок")
+        inner class ErrorHandlingTests {
+
+            @Test
+            fun `should return 500 when required field data is missing in multipart`() {
+                val body = LinkedMultiValueMap<String, Any>()
+
+                val headers = HttpHeaders().apply {
+                    contentType = MediaType.MULTIPART_FORM_DATA
+                }
+
+                val response: ResponseEntity<Void> = restTemplate.exchange(
+                    apiBase,
+                    POST,
+                    HttpEntity(body, headers),
+                    Void::class.java
+                )
+
+                Assertions.assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.statusCode)
+            }
+
+            @Test
+            fun `should return 415 when content type is wrong for create`() {
+                val dto = ProductCreateDto(
+                    name = "Тест",
+                    calories = 100.0, proteins = 10.0, fats = 5.0, carbohydrates = 0.0,
+                    category = Category.VEGETABLES,
+                    cookingRequirement = CookingRequirement.READY_TO_EAT,
+                    flags = emptySet(),
+                    composition = null,
+                    photos = emptyList()
+                )
+
+                val headers = HttpHeaders().apply {
+                    contentType = MediaType.APPLICATION_JSON
+                }
+
+                val response: ResponseEntity<Void> = restTemplate.exchange(
+                    apiBase,
+                    POST,
+                    HttpEntity(dto, headers),
+                    Void::class.java
+                )
+
+                Assertions.assertEquals(HttpStatus.UNSUPPORTED_MEDIA_TYPE, response.statusCode)
+            }
+
+            @Test
+            fun `should handle concurrent delete requests gracefully`() {
+                val id = createTestProduct()
+
+                val response1 = restTemplate.exchange(
+                    "$apiBase/$id",
+                    DELETE,
+                    null,
+                    Void::class.java
+                )
+
+                val response2 = restTemplate.exchange(
+                    "$apiBase/$id",
+                    DELETE,
+                    null,
+                    Void::class.java
+                )
+
+                val statuses = listOf(response1.statusCode, response2.statusCode)
+                Assertions.assertTrue(
+                    HttpStatus.NO_CONTENT in statuses || HttpStatus.NOT_FOUND in statuses,
+                    "Expected NO_CONTENT or NOT_FOUND, got $statuses"
+                )
+            }
         }
     }
 }

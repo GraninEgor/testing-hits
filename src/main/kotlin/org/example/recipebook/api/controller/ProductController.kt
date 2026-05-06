@@ -26,7 +26,6 @@ import org.springframework.web.multipart.MultipartFile
 import java.io.IOException
 
 @RestController
-
 @RequestMapping("/rest/admin-ui/products")
 class ProductController(private val productService: ProductService) {
     @GetMapping
@@ -34,8 +33,6 @@ class ProductController(private val productService: ProductService) {
         val productDto: Page<ProductDto> = productService.getAll(filter, pageable)
         return PagedModel(productDto)
     }
-
-    private val log = KotlinLogging.logger {}
 
     @GetMapping("/{id}")
     fun getOne(@PathVariable id: Long): ProductDto = productService.getOne(id)
@@ -48,9 +45,6 @@ class ProductController(private val productService: ProductService) {
         @Valid @RequestPart("data") dto: ProductCreateDto,
         @RequestPart("files", required = false) files: List<MultipartFile>?
     ): ProductDto {
-        files?.forEach {
-            log.info("FILE -> name: {}, size: {}", it.originalFilename, it.size)
-        }
         return productService.create(dto, files)
     }
 
