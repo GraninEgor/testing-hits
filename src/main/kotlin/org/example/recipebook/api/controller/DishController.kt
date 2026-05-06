@@ -62,7 +62,6 @@ class DishController(private val dishService: DishService) {
         return dishService.patch(id, dto, files)
     }
 
-
     @PatchMapping
     @Throws(IOException::class)
     fun patchMany(@RequestParam @Valid ids: List<Long>, @RequestBody patchNode: JsonNode): List<Long> =

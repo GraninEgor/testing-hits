@@ -1,6 +1,5 @@
 package org.example.recipebook.api.controller
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import org.example.recipebook.api.dto.*
 import org.example.recipebook.core.database.entity.Category
 import org.example.recipebook.core.database.entity.CookingRequirement
@@ -14,7 +13,6 @@ import org.springframework.http.*
 import org.springframework.http.HttpMethod.*
 import org.springframework.util.LinkedMultiValueMap
 import org.springframework.util.MultiValueMap
-import kotlin.math.abs
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ProductControllerApiTest : SharedTestContainers() {
