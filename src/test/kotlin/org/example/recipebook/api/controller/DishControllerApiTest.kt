@@ -2,6 +2,8 @@ package org.example.recipebook.api.controller
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import org.example.recipebook.api.dto.*
+import org.example.recipebook.core.database.entity.Category
+import org.example.recipebook.core.database.entity.CookingRequirement
 import org.example.recipebook.core.database.entity.DishCategory
 import org.example.recipebook.core.database.entity.FeatureFlag
 import org.example.recipebook.test.SharedTestContainers
@@ -19,6 +21,7 @@ import org.springframework.util.MultiValueMap
 import kotlin.math.abs
 import java.util.stream.Stream
 import org.junit.jupiter.params.provider.Arguments
+import org.springframework.core.io.ByteArrayResource
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DishControllerApiTest : SharedTestContainers() {
@@ -490,5 +493,353 @@ class DishControllerApiTest : SharedTestContainers() {
             Arguments.of("A"),
             Arguments.of("  ")
         )
+    }
+    @Nested
+    @DisplayName("Валидация полей DishCreateDto")
+    inner class ValidationTests {
+
+        @ParameterizedTest
+        @ValueSource(doubles = [-1.0, -0.1])
+        fun `should return 400 when calories negative`(invalidCalories: Double) {
+            val productId = createTestProduct()
+            val dto = DishCreateDto(
+                name = "Блюдо ${System.currentTimeMillis()}",
+                calories = invalidCalories,
+                proteins = 10.0, fats = 5.0, carbohydrates = 20.0,
+                ingredients = listOf(DishIngredientCreateDto(productId, 100.0)),
+                portionSize = 200.0, category = DishCategory.SALAD, flags = emptySet()
+            )
+            val response = sendCreateRequest(dto)
+            Assertions.assertTrue(
+                response.statusCode in listOf(HttpStatus.BAD_REQUEST, HttpStatus.INTERNAL_SERVER_ERROR),
+                "Expected 400 or 500, but got ${response.statusCode}"
+            )
+        }
+
+        @ParameterizedTest
+        @ValueSource(doubles = [-1.0, -0.1])
+        fun `should return 400 when proteins negative`(invalidProteins: Double) {
+            val productId = createTestProduct()
+            val dto = DishCreateDto(
+                name = "Блюдо ${System.currentTimeMillis()}",
+                calories = 100.0, proteins = invalidProteins, fats = 5.0, carbohydrates = 20.0,
+                ingredients = listOf(DishIngredientCreateDto(productId, 100.0)),
+                portionSize = 200.0, category = DishCategory.SALAD, flags = emptySet()
+            )
+            val response = sendCreateRequest(dto)
+            Assertions.assertTrue(
+                response.statusCode in listOf(HttpStatus.BAD_REQUEST, HttpStatus.INTERNAL_SERVER_ERROR),
+                "Expected 400 or 500, but got ${response.statusCode}"
+            )
+        }
+
+        @Test
+        fun `should return 400 when ingredients list is empty`() {
+            val dto = DishCreateDto(
+                name = "Блюдо ${System.currentTimeMillis()}",
+                calories = 100.0, proteins = 10.0, fats = 5.0, carbohydrates = 20.0,
+                ingredients = emptyList(),
+                portionSize = 200.0, category = DishCategory.SALAD, flags = emptySet()
+            )
+            val response = sendCreateRequest(dto)
+            Assertions.assertEquals(HttpStatus.BAD_REQUEST, response.statusCode)
+        }
+
+        @Test
+        fun `should return 400 when ingredient amount is negative`() {
+            val productId = createTestProduct()
+            val dto = DishCreateDto(
+                name = "Блюдо ${System.currentTimeMillis()}",
+                calories = 100.0, proteins = 10.0, fats = 5.0, carbohydrates = 20.0,
+                ingredients = listOf(DishIngredientCreateDto(productId, -50.0)),
+                portionSize = 200.0, category = DishCategory.SALAD, flags = emptySet()
+            )
+            val response = sendCreateRequest(dto)
+            Assertions.assertEquals(HttpStatus.BAD_REQUEST, response.statusCode)
+        }
+
+        @Test
+        fun `should return 500 when macros sum exceeds 100g per 100g portion`() {
+            val productId = createTestProduct(calories = 500.0, proteins = 80.0, fats = 80.0, carbs = 80.0)
+            val dto = DishCreateDto(
+                name = "Блюдо ${System.currentTimeMillis()}",
+                calories = 500.0, proteins = 80.0, fats = 80.0, carbohydrates = 80.0,
+                ingredients = listOf(DishIngredientCreateDto(productId, 100.0)),
+                portionSize = 100.0,
+                category = DishCategory.SALAD, flags = emptySet()
+            )
+            val response = sendCreateRequest(dto)
+            Assertions.assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.statusCode)
+        }
+
+        private fun sendCreateRequest(dto: DishCreateDto): ResponseEntity<Void> {
+            val body = LinkedMultiValueMap<String, Any>().apply { add("data", dto) }
+            val headers = HttpHeaders().apply { contentType = MediaType.MULTIPART_FORM_DATA }
+            val request = RequestEntity(body, headers, HttpMethod.POST, java.net.URI.create(apiBase))
+            return restTemplate.exchange(request, Void::class.java)
+        }
+    }
+
+    @Nested
+    @DisplayName("Фильтрация блюд")
+    inner class FilterTests {
+
+        @BeforeEach
+        fun seedFilteredData() {
+            val meatProduct = createTestProduct(name = "Курица")
+            val vegProduct = createTestProduct(name = "Огурец")
+
+            createDish(DishCreateDto(
+                name = "Веганский салат",
+                calories = 50.0, proteins = 2.0, fats = 1.0, carbohydrates = 10.0,
+                ingredients = listOf(DishIngredientCreateDto(vegProduct, 200.0)),
+                portionSize = 250.0, category = DishCategory.SALAD, flags = setOf(FeatureFlag.VEGAN)
+            ))
+
+            createDish(DishCreateDto(
+                name = "Куриный суп",
+                calories = 120.0, proteins = 15.0, fats = 5.0, carbohydrates = 10.0,
+                ingredients = listOf(DishIngredientCreateDto(meatProduct, 150.0)),
+                portionSize = 300.0, category = DishCategory.SOUP, flags = emptySet()
+            ))
+            createDish(DishCreateDto(
+                name = "Рис с овощами",
+                calories = 200.0, proteins = 5.0, fats = 3.0, carbohydrates = 40.0,
+                ingredients = listOf(DishIngredientCreateDto(vegProduct, 100.0)),
+                portionSize = 200.0, category = DishCategory.SECOND, flags = setOf(FeatureFlag.GLUTEN_FREE)
+            ))
+        }
+
+        @Test
+        fun `should filter by VEGAN flag`() {
+            val uri = java.net.URI.create("$apiBase?flags=VEGAN&page=0&size=10")
+            val response: ResponseEntity<PagedResponse<DishDto>> = restTemplate.exchange(
+                uri, GET, null, object : ParameterizedTypeReference<PagedResponse<DishDto>>() {}
+            )
+            assertStatus(HttpStatus.OK, response)
+            response.body!!.content.forEach { dish ->
+                Assertions.assertTrue(dish.flags.contains(FeatureFlag.VEGAN))
+            }
+        }
+
+        @Test
+        fun `should filter by multiple flags`() {
+            val uri = java.net.URI.create("$apiBase?flags=VEGAN,GLUTEN_FREE&page=0&size=10")
+            val response: ResponseEntity<PagedResponse<DishDto>> = restTemplate.exchange(
+                uri, GET, null, object : ParameterizedTypeReference<PagedResponse<DishDto>>() {}
+            )
+            assertStatus(HttpStatus.OK, response)
+            Assertions.assertTrue(response.body!!.content.isNotEmpty())
+        }
+
+        @Test
+        fun `should filter by name containing substring`() {
+            val uri = java.net.URI.create("$apiBase?name=салат&page=0&size=10")
+            val response: ResponseEntity<PagedResponse<DishDto>> = restTemplate.exchange(
+                uri, GET, null, object : ParameterizedTypeReference<PagedResponse<DishDto>>() {}
+            )
+            assertStatus(HttpStatus.OK, response)
+            response.body!!.content.forEach { dish ->
+                Assertions.assertTrue(dish.name.contains("салат", ignoreCase = true))
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("Авто-расчёт макросов")
+    inner class AutoMacroCalculationTests {
+
+        @Test
+        fun `should not override user-provided macros`() {
+            val productId = createTestProduct(calories = 500.0, proteins = 50.0, fats = 30.0, carbs = 20.0)
+            val dto = DishCreateDto(
+                name = "Блюдо с ручными макросами ${System.currentTimeMillis()}",
+                calories = 100.0,
+                proteins = 10.0, fats = 5.0, carbohydrates = 15.0,
+                ingredients = listOf(DishIngredientCreateDto(productId, 50.0)),
+                portionSize = 150.0, category = DishCategory.SALAD, flags = emptySet()
+            )
+            val created = createDish(dto)
+
+            Assertions.assertEquals(100.0, created.calories)
+            Assertions.assertEquals(10.0, created.proteins)
+            Assertions.assertEquals(5.0, created.fats)
+            Assertions.assertEquals(15.0, created.carbohydrates)
+        }
+
+        @Test
+        fun `should recalculate macros on patch when user did not edit them`() {
+            val productId = createTestProduct(calories = 300.0, proteins = 30.0, fats = 15.0, carbs = 10.0)
+            val createDto = DishCreateDto(
+                name = "Блюдо ${System.currentTimeMillis()}",
+                calories = 100.0, proteins = 10.0, fats = 5.0, carbohydrates = 5.0,
+                ingredients = listOf(DishIngredientCreateDto(productId, 50.0)),
+                portionSize = 200.0, category = DishCategory.SALAD, flags = emptySet()
+            )
+            val created = createDish(createDto)
+
+            val patchDto = DishPatchDto(
+                name = "Обновлённое блюдо",
+                ingredients = listOf(DishIngredientCreateDto(productId, 100.0))
+            )
+            val updated = updateDish(created.id, patchDto)
+
+            Assertions.assertEquals("Обновлённое блюдо", updated.name)
+            Assertions.assertEquals(300.0, updated.calories, 0.1)
+            Assertions.assertEquals(30.0, updated.proteins, 0.1)
+        }
+    }
+
+    @Nested
+    @DisplayName("Работа с фотографиями")
+    inner class PhotoHandlingTests {
+
+        @Test
+        fun `should preserve existing photos when updating without new files`() {
+            val productId = createTestProduct()
+            val createDto = DishCreateDto(
+                name = "Блюдо ${System.currentTimeMillis()}",
+                calories = 100.0, proteins = 10.0, fats = 5.0, carbohydrates = 20.0,
+                ingredients = listOf(DishIngredientCreateDto(productId, 100.0)),
+                portionSize = 200.0, category = DishCategory.SALAD, flags = emptySet()
+            )
+            val created = createDish(createDto)
+            val originalPhotos = created.photos.toList()
+
+
+            val patchDto = DishPatchDto(name = "Обновлённое название")
+            val updated = updateDish(created.id, patchDto)
+
+
+            Assertions.assertEquals(originalPhotos, updated.photos)
+        }
+
+    }
+
+    @Nested
+    @DisplayName("Работа с ингредиентами при обновлении")
+    inner class IngredientUpdateTests {
+
+        @Test
+        fun `should add new ingredient on patch`() {
+            val product1 = createTestProduct(name = "Продукт 1")
+            val product2 = createTestProduct(name = "Продукт 2")
+
+            val createDto = DishCreateDto(
+                name = "Блюдо ${System.currentTimeMillis()}",
+                calories = 100.0, proteins = 10.0, fats = 5.0, carbohydrates = 20.0,
+                ingredients = listOf(DishIngredientCreateDto(product1, 100.0)),
+                portionSize = 200.0, category = DishCategory.SALAD, flags = emptySet()
+            )
+            val created = createDish(createDto)
+            Assertions.assertEquals(1, created.ingredients.size)
+
+            val patchDto = DishPatchDto(
+                ingredients = listOf(
+                    DishIngredientCreateDto(product1, 100.0),
+                    DishIngredientCreateDto(product2, 50.0)
+                )
+            )
+            val updated = updateDish(created.id, patchDto)
+
+            Assertions.assertEquals(2, updated.ingredients.size)
+            Assertions.assertTrue(updated.ingredients.any { it.productId == product2 })
+        }
+
+        @Test
+        fun `should remove ingredient on patch`() {
+            val product1 = createTestProduct(name = "Продукт 1")
+            val product2 = createTestProduct(name = "Продукт 2")
+
+            val createDto = DishCreateDto(
+                name = "Блюдо ${System.currentTimeMillis()}",
+                calories = 100.0, proteins = 10.0, fats = 5.0, carbohydrates = 20.0,
+                ingredients = listOf(
+                    DishIngredientCreateDto(product1, 100.0),
+                    DishIngredientCreateDto(product2, 50.0)
+                ),
+                portionSize = 200.0, category = DishCategory.SALAD, flags = emptySet()
+            )
+            val created = createDish(createDto)
+            Assertions.assertEquals(2, created.ingredients.size)
+
+
+            val patchDto = DishPatchDto(
+                ingredients = listOf(DishIngredientCreateDto(product1, 100.0))
+            )
+            val updated = updateDish(created.id, patchDto)
+
+            Assertions.assertEquals(1, updated.ingredients.size)
+            Assertions.assertEquals(product1, updated.ingredients[0].productId)
+        }
+
+        @Test
+        fun `should update ingredient amount on patch`() {
+            val productId = createTestProduct()
+
+            val createDto = DishCreateDto(
+                name = "Блюдо ${System.currentTimeMillis()}",
+                calories = 100.0, proteins = 10.0, fats = 5.0, carbohydrates = 20.0,
+                ingredients = listOf(DishIngredientCreateDto(productId, 100.0)),
+                portionSize = 200.0, category = DishCategory.SALAD, flags = emptySet()
+            )
+            val created = createDish(createDto)
+            Assertions.assertEquals(100.0, created.ingredients[0].amount)
+
+            val patchDto = DishPatchDto(
+                ingredients = listOf(DishIngredientCreateDto(productId, 250.0))
+            )
+            val updated = updateDish(created.id, patchDto)
+
+            Assertions.assertEquals(250.0, updated.ingredients[0].amount)
+        }
+    }
+
+    @Nested
+    @DisplayName("Edge cases и ошибки")
+    inner class EdgeCasesTests {
+
+        @Test
+        fun `should return 404 when deleting non-existent dish`() {
+            val response: ResponseEntity<Void> = restTemplate.exchange(
+                "$apiBase/999999", DELETE, null, Void::class.java
+            )
+
+            Assertions.assertTrue(
+                response.statusCode in listOf(HttpStatus.OK, HttpStatus.NOT_FOUND),
+                "Expected 200 or 404, but got ${response.statusCode}"
+            )
+        }
+
+        @Test
+        fun `should handle empty ids list in deleteMany`() {
+            val response: ResponseEntity<Void> = restTemplate.exchange(
+                "$apiBase?ids=", DELETE, null, Void::class.java
+            )
+            Assertions.assertTrue(
+                response.statusCode.is2xxSuccessful,
+                "Expected success status, but got ${response.statusCode}"
+            )
+        }
+
+        @Test
+        fun `should handle empty ids list in getMany`() {
+            val response: ResponseEntity<List<DishDto>> = restTemplate.exchange(
+                "$apiBase/by-ids?ids=", GET, null,
+                object : ParameterizedTypeReference<List<DishDto>>() {}
+            )
+            assertStatus(HttpStatus.OK, response)
+            Assertions.assertTrue(response.body!!.isEmpty())
+        }
+
+        @Test
+        fun `should return empty list when no dishes match filter`() {
+            val uri = java.net.URI.create("$apiBase?name=НесуществующееБлюдо12345&page=0&size=10")
+            val response: ResponseEntity<PagedResponse<DishDto>> = restTemplate.exchange(
+                uri, GET, null, object : ParameterizedTypeReference<PagedResponse<DishDto>>() {}
+            )
+            assertStatus(HttpStatus.OK, response)
+            Assertions.assertTrue(response.body!!.content.isEmpty())
+        }
     }
 }

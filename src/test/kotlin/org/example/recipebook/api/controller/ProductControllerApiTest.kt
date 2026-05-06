@@ -536,7 +536,6 @@ class ProductControllerApiTest : SharedTestContainers() {
                 }
 
                 val body = LinkedMultiValueMap<String, Any>().apply {
-                    // DTO отправляем как JSON-строку с явным Content-Type
                     add("data", dto)
                     add("files", fileResource)
                 }
