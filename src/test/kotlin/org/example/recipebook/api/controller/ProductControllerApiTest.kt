@@ -160,7 +160,7 @@ class ProductControllerApiTest : SharedTestContainers() {
             val request = RequestEntity(body, headers, POST, java.net.URI.create(apiBase))
 
             val response: ResponseEntity<Void> = restTemplate.exchange(request, Void::class.java)
-            assertStatus(HttpStatus.INTERNAL_SERVER_ERROR, response)
+            assertStatus(HttpStatus.BAD_REQUEST, response)
         }
 
         @Test
@@ -180,7 +180,7 @@ class ProductControllerApiTest : SharedTestContainers() {
             val request = RequestEntity(body, headers, POST, java.net.URI.create(apiBase))
 
             val response: ResponseEntity<Void> = restTemplate.exchange(request, Void::class.java)
-            assertStatus(HttpStatus.INTERNAL_SERVER_ERROR, response)
+            assertStatus(HttpStatus.BAD_REQUEST, response)
         }
 
         @Test
@@ -200,7 +200,7 @@ class ProductControllerApiTest : SharedTestContainers() {
             val request = RequestEntity(body, headers, POST, java.net.URI.create(apiBase))
 
             val response: ResponseEntity<Void> = restTemplate.exchange(request, Void::class.java)
-            assertStatus(HttpStatus.INTERNAL_SERVER_ERROR, response)
+            assertStatus(HttpStatus.BAD_REQUEST, response)
         }
     }
 
@@ -265,7 +265,7 @@ class ProductControllerApiTest : SharedTestContainers() {
         @Test
         fun `should return 404 for non-existent id`() {
             val response: ResponseEntity<Void> = restTemplate.getForEntity("$apiBase/999999", Void::class.java)
-            assertStatus(HttpStatus.INTERNAL_SERVER_ERROR, response)
+            assertStatus(HttpStatus.NOT_FOUND, response)
         }
 
         @Test
@@ -382,7 +382,7 @@ class ProductControllerApiTest : SharedTestContainers() {
             Assertions.assertEquals(HttpStatus.NO_CONTENT, deleteResponse.statusCode)
 
             val getResponse: ResponseEntity<Void> = restTemplate.getForEntity("$apiBase/$id", Void::class.java)
-            Assertions.assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, getResponse.statusCode)
+            Assertions.assertEquals(HttpStatus.NOT_FOUND, getResponse.statusCode)
         }
 
         @Test
@@ -402,7 +402,7 @@ class ProductControllerApiTest : SharedTestContainers() {
 
             ids.forEach { id ->
                 val getResp: ResponseEntity<Void> = restTemplate.getForEntity("$apiBase/$id", Void::class.java)
-                Assertions.assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, getResp.statusCode)
+                Assertions.assertEquals(HttpStatus.NOT_FOUND, getResp.statusCode)
             }
         }
     }

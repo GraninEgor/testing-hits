@@ -13,6 +13,7 @@ import org.example.recipebook.core.database.entity.FeatureFlag
 import org.example.recipebook.core.database.repository.DishIngredientRepository
 import org.example.recipebook.core.database.repository.DishRepository
 import org.example.recipebook.core.database.repository.ProductRepository
+import org.example.recipebook.core.exception.DishNotFoundException
 import org.example.recipebook.core.exception.ProductNotFoundException
 import org.example.recipebook.core.filter.DishFilter
 import org.example.recipebook.core.mapper.toDishDto
@@ -49,7 +50,7 @@ class DishServiceImpl(
 
     override fun getOne(id: Long): DishDto =
         dishRepository.findById(id)
-            .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "Dish not found") }
+            .orElseThrow { DishNotFoundException(id) }
             .toDishDto()
 
     override fun getMany(ids: List<Long>): List<DishDto> =
@@ -83,7 +84,7 @@ class DishServiceImpl(
 
     override fun patch(id: Long, dto: DishPatchDto, files: List<MultipartFile>?): DishDto {
         val dish = dishRepository.findById(id)
-            .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "Dish not found") }
+            .orElseThrow { DishNotFoundException(id) }
 
         dto.name?.let { dish.name = it }
         dto.portionSize?.let { dish.portionSize = it }
@@ -113,9 +114,7 @@ class DishServiceImpl(
                     existing.amount = ing.amount
                 } else {
                     val product = productRepository.findById(ing.productId)
-                        .orElseThrow {
-                            ResponseStatusException(HttpStatus.NOT_FOUND, "Product ${ing.productId} not found")
-                        }
+                        .orElseThrow { ProductNotFoundException(ing.productId) }
                     dish.ingredients.add(DishIngredient(dish = dish, product = product, amount = ing.amount))
                 }
             }
@@ -186,7 +185,7 @@ class DishServiceImpl(
 
     private fun saveFile(file: MultipartFile): String {
         val fileName = "${UUID.randomUUID()}_${file.originalFilename}"
-        val path = Paths.get(uploadDir, fileName)  // ← Используем uploadDir
+        val path = Paths.get(uploadDir, fileName)
         Files.createDirectories(path.parent)
         file.transferTo(path.toFile())
         return "/$uploadDir$fileName"

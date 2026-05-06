@@ -207,7 +207,7 @@ class DishControllerApiTest : SharedTestContainers() {
         }
 
         @Test
-        fun `should return 400 or 500 when product not found`() {
+        fun `should return 404 when product not found`() {
             val dto = DishCreateDto(
                 name = "Блюдо",
                 calories = 100.0, proteins = 10.0, fats = 5.0, carbohydrates = 20.0,
@@ -217,12 +217,12 @@ class DishControllerApiTest : SharedTestContainers() {
 
             val body = LinkedMultiValueMap<String, Any>().apply { add("data", dto) }
             val headers = HttpHeaders().apply { contentType = MediaType.MULTIPART_FORM_DATA }
-            val request = RequestEntity(body, headers, HttpMethod.POST, java.net.URI.create(apiBase))
+            val request = RequestEntity(body, headers, POST, java.net.URI.create(apiBase))
 
             val response: ResponseEntity<Void> = restTemplate.exchange(request, Void::class.java)
             val status = response.statusCode
             Assertions.assertTrue(
-                status == HttpStatus.BAD_REQUEST || status == HttpStatus.INTERNAL_SERVER_ERROR,
+                status == HttpStatus.NOT_FOUND,
                 "Expected 400 or 500, but got $status"
             )
         }

@@ -7,6 +7,7 @@ import org.example.recipebook.core.database.entity.Product
 import org.example.recipebook.api.dto.ProductDto
 import org.example.recipebook.core.database.repository.DishRepository
 import org.example.recipebook.core.database.repository.ProductRepository
+import org.example.recipebook.core.exception.ProductNotFoundException
 import org.example.recipebook.core.filter.ProductFilter
 import org.example.recipebook.core.mapper.toEntity
 import org.example.recipebook.core.mapper.toProductDto
@@ -37,8 +38,9 @@ class ProductServiceImpl(
     }
 
     override fun getOne(id: Long): ProductDto {
-        val productOptional: Optional<Product> = productRepository.findById(id)
-        return productOptional.orElse(null).toProductDto()
+        return productRepository.findById(id)
+            .orElseThrow { ProductNotFoundException(id) }
+            .toProductDto()
     }
 
     override fun getMany(ids: List<Long>): List<ProductDto> {
@@ -76,9 +78,7 @@ class ProductServiceImpl(
         files: List<MultipartFile>?
     ): ProductDto {
         println(dto)
-        val product = productRepository.findById(id).orElseThrow {
-            ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found")
-        }
+        val product = productRepository.findById(id).orElseThrow { ProductNotFoundException(id) }
 
         product.name = dto.name
         product.calories = dto.calories
@@ -133,8 +133,8 @@ class ProductServiceImpl(
 
     override fun delete(id: Long): ProductDto? {
 
-        val product = productRepository.findById(id).orElse(null)
-            ?: return null
+        val product = productRepository.findById(id)
+            .orElseThrow { ProductNotFoundException(id) }
 
         val usedInDish = dishRepository.existsByIngredientsProductId(id)
 
