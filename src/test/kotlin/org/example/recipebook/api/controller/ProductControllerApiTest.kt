@@ -6,6 +6,9 @@ import org.example.recipebook.core.database.entity.CookingRequirement
 import org.example.recipebook.core.database.entity.FeatureFlag
 import org.example.recipebook.test.SharedTestContainers
 import org.junit.jupiter.api.*
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
+import org.junit.jupiter.params.provider.ValueSource
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.web.client.TestRestTemplate
 import org.springframework.core.ParameterizedTypeReference
@@ -143,6 +146,61 @@ class ProductControllerApiTest : SharedTestContainers() {
             createdProductIds.add(created.id)
         }
 
+        @ParameterizedTest
+        @ValueSource(strings = ["", "A", "Ab"])
+        @DisplayName("Должен вернуть 400 при невалидном имени продукта")
+        fun `should return 400 when name is invalid`(invalidName: String) {
+            val dto = ProductCreateDto(
+                name = invalidName,
+                calories = 100.0, proteins = 10.0, fats = 5.0, carbohydrates = 0.0,
+                category = Category.VEGETABLES,
+                cookingRequirement = CookingRequirement.READY_TO_EAT,
+                flags = emptySet(),
+                composition = null,
+                photos = emptyList()
+            )
+
+            val body = LinkedMultiValueMap<String, Any>().apply { add("data", dto) }
+            val headers = HttpHeaders().apply { contentType = MediaType.MULTIPART_FORM_DATA }
+            val request = RequestEntity(body, headers, POST, java.net.URI.create(apiBase))
+
+            val response: ResponseEntity<Void> = restTemplate.exchange(request, Void::class.java)
+            assertStatus(HttpStatus.BAD_REQUEST, response)
+        }
+
+        @ParameterizedTest
+        @CsvSource(
+            "-10.0, 10.0, 5.0, 0.0",
+            "-0.01, 10.0, 5.0, 0.0",
+            "100.0, -5.0, 5.0, 0.0",
+            "100.0, 10.0, -1.0, 0.0",
+            "100.0, 10.0, 5.0, -0.5",
+            "100.0, 101.0, 5.0, 0.0",
+            "100.0, 10.0, 101.0, 0.0",
+            "100.0, 10.0, 5.0, 101.0"
+        )
+        @DisplayName("Должен вернуть 400 при невалидных числовых полях")
+        fun `should return 400 when numeric fields are invalid`(
+            calories: Double, proteins: Double, fats: Double, carbs: Double
+        ) {
+            val dto = ProductCreateDto(
+                name = "Тестовый продукт",
+                calories = calories, proteins = proteins, fats = fats, carbohydrates = carbs,
+                category = Category.VEGETABLES,
+                cookingRequirement = CookingRequirement.READY_TO_EAT,
+                flags = emptySet(),
+                composition = null,
+                photos = emptyList()
+            )
+
+            val body = LinkedMultiValueMap<String, Any>().apply { add("data", dto) }
+            val headers = HttpHeaders().apply { contentType = MediaType.MULTIPART_FORM_DATA }
+            val request = RequestEntity(body, headers, POST, java.net.URI.create(apiBase))
+
+            val response: ResponseEntity<Void> = restTemplate.exchange(request, Void::class.java)
+            assertStatus(HttpStatus.BAD_REQUEST, response)
+        }
+
         @Test
         fun `should return 400 when name too short`() {
             val dto = ProductCreateDto(
@@ -262,9 +320,11 @@ class ProductControllerApiTest : SharedTestContainers() {
             Assertions.assertEquals(id, response.body!!.id)
         }
 
-        @Test
-        fun `should return 404 for non-existent id`() {
-            val response: ResponseEntity<Void> = restTemplate.getForEntity("$apiBase/999999", Void::class.java)
+        @ParameterizedTest
+        @ValueSource(longs = [999999, -1, 0, Long.MAX_VALUE])
+        @DisplayName("Должен вернуть 404 для несуществующих или невалидных ID (эквивалентное разбиение)")
+        fun `should return 404 for non-existent or invalid id`(invalidId: Long) {
+            val response: ResponseEntity<Void> = restTemplate.getForEntity("$apiBase/$invalidId", Void::class.java)
             assertStatus(HttpStatus.NOT_FOUND, response)
         }
 

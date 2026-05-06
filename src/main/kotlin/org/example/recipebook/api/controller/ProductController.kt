@@ -45,7 +45,7 @@ class ProductController(private val productService: ProductService) {
 
     @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun create(
-        @RequestPart("data") dto: ProductCreateDto,
+        @Valid @RequestPart("data") dto: ProductCreateDto,
         @RequestPart("files", required = false) files: List<MultipartFile>?
     ): ProductDto {
         files?.forEach {

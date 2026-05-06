@@ -10,7 +10,7 @@ import org.example.recipebook.core.database.entity.CookingRequirement
 import org.example.recipebook.core.database.entity.FeatureFlag
 
 data class ProductCreateDto(
-    @field:NotBlank @field:Size(min = 2)
+    @field:NotBlank @field:Size(min = 3)
     val name: String,
 
     @field:Size(max = 5)

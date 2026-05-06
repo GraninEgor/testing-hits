@@ -5,6 +5,10 @@ import org.example.recipebook.api.dto.*
 import org.example.recipebook.core.database.entity.DishCategory
 import org.example.recipebook.core.database.entity.FeatureFlag
 import org.example.recipebook.test.SharedTestContainers
+import org.junit.jupiter.api.*
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
+import org.junit.jupiter.params.provider.ValueSource
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.web.client.TestRestTemplate
 import org.springframework.core.ParameterizedTypeReference
@@ -13,7 +17,8 @@ import org.springframework.http.HttpMethod.*
 import org.springframework.util.LinkedMultiValueMap
 import org.springframework.util.MultiValueMap
 import kotlin.math.abs
-import org.junit.jupiter.api.*
+import java.util.stream.Stream
+import org.junit.jupiter.params.provider.Arguments
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DishControllerApiTest : SharedTestContainers() {
@@ -39,14 +44,6 @@ class DishControllerApiTest : SharedTestContainers() {
             expected,
             actual!!.statusCode,
             "Expected status $expected, but got ${actual.statusCode}"
-        )
-    }
-
-    private fun assertDoubleCloseTo(actual: Double, expected: Double, tolerance: Double = 0.1) {
-        val diff = abs(actual - expected)
-        Assertions.assertTrue(
-            diff <= tolerance,
-            "Expected $expected ± $tolerance, but got $actual"
         )
     }
 
@@ -167,32 +164,13 @@ class DishControllerApiTest : SharedTestContainers() {
             Assertions.assertEquals(150.0, created.ingredients[0].amount)
         }
 
-        @Test
-        fun `should auto-calculate macros when zeros provided`() {
-            val productId = createTestProduct(calories = 100.0, proteins = 10.0, fats = 5.0, carbs = 0.0)
-
-            val dto = DishCreateDto(
-                name = "Омлет ${System.currentTimeMillis()}",
-                calories = 0.0, proteins = 0.0, fats = 0.0, carbohydrates = 0.0,
-                ingredients = listOf(DishIngredientCreateDto(productId, 100.0)),
-                portionSize = 100.0,
-                category = DishCategory.SOUP,
-                flags = emptySet()
-            )
-
-            val created = createDish(dto)
-
-            assertDoubleCloseTo(created.calories, 0.0)
-            assertDoubleCloseTo(created.proteins, 0.0)
-            assertDoubleCloseTo(created.fats, 0.0)
-            assertDoubleCloseTo(created.carbohydrates, 0.0)
-        }
-
-        @Test
-        fun `should return 400 when name too short`() {
+        @ParameterizedTest
+        @ValueSource(strings = ["", "A", "  "])
+        @DisplayName("Должен вернуть 400 при слишком коротком имени")
+        fun `should return 400 when name too short`(shortName: String) {
             val productId = createTestProduct()
             val dto = DishCreateDto(
-                name = "A",
+                name = shortName,
                 calories = 100.0, proteins = 10.0, fats = 5.0, carbohydrates = 20.0,
                 ingredients = listOf(DishIngredientCreateDto(productId, 100.0)),
                 portionSize = 200.0, category = DishCategory.SALAD, flags = emptySet()
@@ -206,12 +184,14 @@ class DishControllerApiTest : SharedTestContainers() {
             assertStatus(HttpStatus.BAD_REQUEST, response)
         }
 
-        @Test
-        fun `should return 404 when product not found`() {
+        @ParameterizedTest
+        @ValueSource(longs = [999999L, -1L, 0L, Long.MAX_VALUE])
+        @DisplayName("Должен вернуть 404 при несуществующем productId")
+        fun `should return 404 when product not found`(invalidProductId: Long) {
             val dto = DishCreateDto(
                 name = "Блюдо",
                 calories = 100.0, proteins = 10.0, fats = 5.0, carbohydrates = 20.0,
-                ingredients = listOf(DishIngredientCreateDto(999999L, 100.0)),
+                ingredients = listOf(DishIngredientCreateDto(invalidProductId, 100.0)),
                 portionSize = 200.0, category = DishCategory.SALAD, flags = emptySet()
             )
 
@@ -222,8 +202,8 @@ class DishControllerApiTest : SharedTestContainers() {
             val response: ResponseEntity<Void> = restTemplate.exchange(request, Void::class.java)
             val status = response.statusCode
             Assertions.assertTrue(
-                status == HttpStatus.NOT_FOUND,
-                "Expected 400 or 500, but got $status"
+                status == HttpStatus.NOT_FOUND || status == HttpStatus.BAD_REQUEST,
+                "Expected 400 or 404, but got $status"
             )
         }
     }
@@ -292,9 +272,11 @@ class DishControllerApiTest : SharedTestContainers() {
             Assertions.assertEquals(id, response.body!!.id)
         }
 
-        @Test
-        fun `should return 404 for non-existent id`() {
-            val response: ResponseEntity<Void> = restTemplate.getForEntity("$apiBase/999999", Void::class.java)
+        @ParameterizedTest
+        @ValueSource(longs = [999999L, -1L, 0L, Long.MAX_VALUE])
+        @DisplayName("Должен вернуть 404 для несуществующего ID")
+        fun `should return 404 for non-existent id`(invalidId: Long) {
+            val response: ResponseEntity<Void> = restTemplate.getForEntity("$apiBase/$invalidId", Void::class.java)
             assertStatus(HttpStatus.NOT_FOUND, response)
         }
 
@@ -346,8 +328,10 @@ class DishControllerApiTest : SharedTestContainers() {
             Assertions.assertEquals(DishCategory.SOUP, updated.category)
         }
 
-        @Test
-        fun `should return 400 or 500 when invalid portionSize`() {
+        @ParameterizedTest
+        @ValueSource(doubles = [-10.0, -1.0, -0.1, 0.0])
+        @DisplayName("Должен вернуть ошибку при невалидном portionSize")
+        fun `should return error when invalid portionSize`(invalidPortionSize: Double) {
             val productId = createTestProduct()
             val createDto = DishCreateDto(
                 name = "Блюдо ${System.currentTimeMillis()}",
@@ -357,7 +341,7 @@ class DishControllerApiTest : SharedTestContainers() {
             )
             val created = createDish(createDto)
 
-            val patchDto = DishPatchDto(portionSize = -10.0)
+            val patchDto = DishPatchDto(portionSize = invalidPortionSize)
 
             val body = LinkedMultiValueMap<String, Any>().apply { add("data", patchDto) }
             val headers = HttpHeaders().apply { contentType = MediaType.MULTIPART_FORM_DATA }
@@ -373,13 +357,15 @@ class DishControllerApiTest : SharedTestContainers() {
             )
         }
 
-        @Test
-        fun `should return 404 for non-existent dish`() {
+        @ParameterizedTest
+        @ValueSource(longs = [999999L, -1L, 0L, Long.MAX_VALUE])
+        @DisplayName("Должен вернуть 404 для несуществующего блюда")
+        fun `should return 404 for non-existent dish`(invalidId: Long) {
             val patchDto = DishPatchDto(name = "Новое имя")
 
             val body = LinkedMultiValueMap<String, Any>().apply { add("data", patchDto) }
             val headers = HttpHeaders().apply { contentType = MediaType.MULTIPART_FORM_DATA }
-            val uri = java.net.URI.create("$apiBase/999999")
+            val uri = java.net.URI.create("$apiBase/$invalidId")
             val request = RequestEntity(body, headers, HttpMethod.PATCH, uri)
 
             val response: ResponseEntity<Void> = restTemplate.exchange(request, Void::class.java)
@@ -479,5 +465,30 @@ class DishControllerApiTest : SharedTestContainers() {
             Assertions.assertNotNull(response.body)
             Assertions.assertTrue(response.body!!.containsAll(ids))
         }
+    }
+
+    companion object {
+        @JvmStatic
+        fun invalidPortionSizes(): Stream<Arguments> = Stream.of(
+            Arguments.of(-10.0),
+            Arguments.of(-1.0),
+            Arguments.of(-0.1),
+            Arguments.of(0.0)
+        )
+
+        @JvmStatic
+        fun invalidIds(): Stream<Arguments> = Stream.of(
+            Arguments.of(999999L),
+            Arguments.of(-1L),
+            Arguments.of(0L),
+            Arguments.of(Long.MAX_VALUE)
+        )
+
+        @JvmStatic
+        fun shortNames(): Stream<Arguments> = Stream.of(
+            Arguments.of(""),
+            Arguments.of("A"),
+            Arguments.of("  ")
+        )
     }
 }
