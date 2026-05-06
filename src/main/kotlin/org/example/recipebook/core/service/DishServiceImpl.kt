@@ -19,6 +19,7 @@ import org.example.recipebook.core.mapper.toDishDto
 import org.example.recipebook.core.mapper.toEntity
 import org.example.recipebook.core.mapper.updateWithNull
 import org.hibernate.Hibernate
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.domain.Specification
@@ -38,7 +39,8 @@ class DishServiceImpl(
     private val dishRepository: DishRepository,
     private val objectMapper: ObjectMapper,
     private val productRepository: ProductRepository,
-    private val dishIngredientRepository: DishIngredientRepository
+    private val dishIngredientRepository: DishIngredientRepository,
+    @Value("\${app.upload-dir:uploads/}") private val uploadDir: String
 ) : DishService {
     override fun getAll(filter: DishFilter, pageable: Pageable): Page<DishDto> {
         val spec: Specification<Dish> = filter.toSpecification()
@@ -183,12 +185,11 @@ class DishServiceImpl(
     }
 
     private fun saveFile(file: MultipartFile): String {
-        val uploadDir = "uploads/"
         val fileName = "${UUID.randomUUID()}_${file.originalFilename}"
-        val path = Paths.get(uploadDir + fileName)
+        val path = Paths.get(uploadDir, fileName)  // ← Используем uploadDir
         Files.createDirectories(path.parent)
-        file.transferTo(path)
-        return "/uploads/$fileName"
+        file.transferTo(path.toFile())
+        return "/$uploadDir$fileName"
     }
 
     private fun saveFileOrNull(file: MultipartFile): String? = try {
