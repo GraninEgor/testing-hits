@@ -24,11 +24,4 @@ object AlertUtils {
         } catch (_: TimeoutException) {}
     }
 
-    fun isAlertPresent(driver: WebDriver, timeoutSeconds: Int = 1): Boolean {
-        return try {
-            WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds.toLong()))
-                .until(ExpectedConditions.alertIsPresent())
-            true
-        } catch (_: TimeoutException) { false }
-    }
 }

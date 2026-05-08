@@ -77,15 +77,13 @@ class ProductsPage(driver: WebDriver) : BasePage(driver) {
         WaitUtils.waitForDebouncedUpdate()
     }
 
-    // 🔹 В ProductsPage.kt — ЗАМЕНИТЕ hasProduct на этот вариант:
-
     fun hasProduct(productName: String, timeoutSec: Int = 30): Boolean {
         val js = driver as org.openqa.selenium.JavascriptExecutor
         val end = System.currentTimeMillis() + timeoutSec * 1000L
 
         while (System.currentTimeMillis() < end) {
             try {
-                // 🔹 Ищем карточку с продуктом по тексту внутри <b>
+
                 val cards = driver.findElements(By.cssSelector("#products-list .card"))
                 for (card in cards) {
                     try {

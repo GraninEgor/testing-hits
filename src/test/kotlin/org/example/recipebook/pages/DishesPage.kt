@@ -13,7 +13,6 @@ class DishesPage(driver: WebDriver) : BasePage(driver) {
 
     private val dishSearch = By.id("dish-search")
     private val dishCategoryFilter = By.id("dish-category")
-    private val filterVegan = By.id("f-vegan")
 
     private val formName = By.id("d-name")
     private val formCategory = By.id("d-category")
@@ -34,7 +33,6 @@ class DishesPage(driver: WebDriver) : BasePage(driver) {
 
     fun searchDishes(query: String) = apply { fillField(dishSearch, query); WaitUtils.waitForDebouncedUpdate() }
     fun filterByCategory(category: String) = apply { selectOptionByText(dishCategoryFilter, category) }
-    fun filterByFlagVegan(enabled: Boolean) = apply { setCheckbox(filterVegan, enabled) }
 
     fun fillBasicDishInfo(name: String, category: String, portionSize: Number) = apply {
         fillField(formName, name)

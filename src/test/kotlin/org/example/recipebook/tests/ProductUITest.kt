@@ -11,7 +11,7 @@ import org.openqa.selenium.chrome.ChromeOptions
 import java.time.Duration
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
-class ProductCrudTest {
+class ProductUITest {
 
     companion object {
         private lateinit var driver: WebDriver

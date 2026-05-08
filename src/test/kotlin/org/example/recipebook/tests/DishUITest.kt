@@ -15,7 +15,7 @@ import org.openqa.selenium.chrome.ChromeOptions
 import java.time.Duration
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
-class DishCrudTest {
+class DishUITest {
 
     companion object {
         private lateinit var driver: WebDriver
@@ -96,7 +96,7 @@ class DishCrudTest {
             "SALAD, 200, 150, 10, 5, 20",
             "SOUP, 350, 200, 15, 8, 30"
         )
-        fun `should create dish with valid macros and category`(
+        fun `should create dish with valid and category`(
             category: String,
             portion: Int,
             calories: Int,
