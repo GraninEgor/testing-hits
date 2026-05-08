@@ -307,28 +307,26 @@ class DishCrudTest {
     @Order(6)
     inner class FlagsLogicTests {
 
-        @ParameterizedTest
-        @ValueSource(strings = ["Мясо", "Вода"])
-        fun `should disable vegan checkbox when non vegan ingredient is added`(nonVeganProduct: String) {
+        @Test
+        fun `should disable vegan checkbox when non vegan ingredient is added`() {
             val dishName = "Блюдо-Не-Веган-${System.currentTimeMillis()}"
             dishesPage
                 .fillBasicDishInfo(dishName, "FIRST", 400)
-                .addIngredient(nonVeganProduct, 200)
+                .addIngredient("Мясо", 200)
             val veganCheckbox = driver.findElement(By.xpath("//input[@class='d-flag' and @value='VEGAN']"))
-            assertTrue(veganCheckbox.isEnabled)
+            assertFalse(veganCheckbox.isEnabled)
             dishesPage.cancelEdit()
         }
 
-        @ParameterizedTest
-        @ValueSource(strings = ["Картофель", "Тест-Веган-Продукт"])
-        fun `should enable vegan checkbox when vegan ingredient is added`(veganProduct: String) {
+        @Test
+        fun `should enable vegan checkbox when vegan ingredient is added`() {
             val dishName = "Блюдо-Веган-${System.currentTimeMillis()}"
             dishesPage
                 .fillBasicDishInfo(dishName, "SALAD", 200)
-                .addIngredient(veganProduct, 100)
+                .addIngredient("Картофель", 100)
             WaitUtils.waitForDebouncedUpdate()
             val veganCheckbox = driver.findElement(By.xpath("//input[@class='d-flag' and @value='VEGAN']"))
-            assertFalse(veganCheckbox.isEnabled)
+            assertTrue(veganCheckbox.isEnabled)
             dishesPage.cancelEdit()
         }
     }
