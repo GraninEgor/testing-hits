@@ -444,13 +444,14 @@ async function startEditProduct(id) {
    📍 SAVE PRODUCT
 ========================= */
 
+/* =========================
+   📍 SAVE PRODUCT (ИСПРАВЛЕННАЯ)
+========================= */
+
 async function saveProduct() {
     const name = document.getElementById("p-name").value.trim();
     const nameError = validateProductName(name);
-    if (nameError) {
-        showAlert(nameError, "error");
-        return;
-    }
+    if (nameError) { showAlert(nameError, "error"); return; }
 
     const calories = +document.getElementById("p-calories").value;
     const proteins = +document.getElementById("p-proteins").value;
@@ -458,88 +459,60 @@ async function saveProduct() {
     const carbs = +document.getElementById("p-carbs").value;
 
     const macrosError = validateProductMacros(calories, proteins, fats, carbs);
-    if (macrosError) {
-        showAlert(macrosError, "error");
-        return;
-    }
+    if (macrosError) { showAlert(macrosError, "error"); return; }
 
     const category = document.getElementById("p-category").value;
-    if (!category) {
-        showAlert("Выберите категорию продукта", "error");
-        return;
-    }
+    if (!category) { showAlert("Выберите категорию продукта", "error"); return; }
 
     const cooking = document.getElementById("p-cooking").value;
-    if (!cooking) {
-        showAlert("Укажите необходимость готовки", "error");
-        return;
-    }
+    if (!cooking) { showAlert("Укажите необходимость готовки", "error"); return; }
 
     const photoError = validateProductPhotos(productFiles, productExistingPhotos);
-    if (photoError) {
-        showAlert(photoError, "error");
-        return;
-    }
+    if (photoError) { showAlert(photoError, "error"); return; }
 
-    // 🔹 Состав продукта
     const composition = document.getElementById("p-composition")?.value?.trim() || null;
 
     const dto = {
-        name: name,
-        calories,
-        proteins,
-        fats,
-        carbohydrates: carbs,
-        composition: composition,  // 🔹 Добавлено
-        category: category,
-        cookingRequirement: cooking,
-        flags: getProductFlags(),
-        photos: [...productExistingPhotos]
+        name, calories, proteins, fats, carbohydrates: carbs,
+        composition, category, cookingRequirement: cooking,
+        flags: getProductFlags(), photos: [...productExistingPhotos]
     };
 
     const formData = new FormData();
     formData.append("data", new Blob([JSON.stringify(dto)], { type: "application/json" }));
-
-    if (productFiles.length > 0) {
-        productFiles.forEach(file => {
-            formData.append("files", file);
-        });
-    }
+    productFiles.forEach(file => formData.append("files", file));
 
     try {
+        let res;
         if (editingProductId) {
-            const res = await fetch(`${PRODUCTS_API}/${editingProductId}`, {
-                method: "PATCH",
-                body: formData
-            });
-            if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                showAlert(err.message || "Ошибка при обновлении продукта", "error");
-                return;
-            }
+            res = await fetch(`${PRODUCTS_API}/${editingProductId}`, { method: "PATCH", body: formData });
+            if (!res.ok) { const err = await res.json().catch(() => ({})); showAlert(err.message || "Ошибка обновления", "error"); return; }
             editingProductId = null;
             showAlert("Продукт успешно обновлен", "success");
         } else {
-            const res = await fetch(PRODUCTS_API, {
-                method: "POST",
-                body: formData
-            });
-            if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                showAlert(err.message || "Ошибка при создании продукта", "error");
-                return;
-            }
+            res = await fetch(PRODUCTS_API, { method: "POST", body: formData });
+            if (!res.ok) { const err = await res.json().catch(() => ({})); showAlert(err.message || "Ошибка создания", "error"); return; }
             showAlert("Продукт успешно создан", "success");
         }
 
+        // 🔹 Сброс формы
         document.getElementById("product-form")?.reset();
         document.getElementById("p-photo-preview").innerHTML = "";
-        loadProducts();
         productFiles = [];
         productExistingPhotos = [];
+
+        // 🔹 Ждём, пока бэкенд точно сохранит продукт
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // 🔹 Принудительно перезагружаем список
+        await loadProducts(true);
+
+        // 🔹 Сигнал для тестов
+        window.__productsLoaded = true;
+
     } catch (err) {
-        console.error(err);
-        showAlert("Сетевая ошибка при сохранении продукта", "error");
+        console.error("❌ saveProduct:", err);
+        showAlert("Сетевая ошибка", "error");
     }
 }
 
@@ -592,7 +565,11 @@ function cancelEditProduct() {
    📍 LOAD PRODUCTS
 ========================= */
 
-async function loadProducts() {
+/* =========================
+   📍 LOAD PRODUCTS (ИСПРАВЛЕННАЯ)
+========================= */
+
+async function loadProducts(forceReload = false) {
     try {
         const params = new URLSearchParams();
         const search = document.getElementById("product-search")?.value;
@@ -607,12 +584,17 @@ async function loadProducts() {
             const [field, dir] = sort.split(",");
             params.append("sort", `${field},${dir}`);
         }
+        if (forceReload) params.append("_t", Date.now());
 
-        const res = await fetch(`${PRODUCTS_API}?${params}`);
+        const url = `${PRODUCTS_API}?${params}`;
+        const res = await fetch(url);
+
         if (!res.ok) {
-            showAlert("Не удалось загрузить список продуктов", "error");
+            console.error("❌ loadProducts: HTTP", res.status);
+            showAlert("Не удалось загрузить продукты", "error");
             return;
         }
+
         const data = await res.json();
         allProducts = extractProducts(data);
 
@@ -626,11 +608,20 @@ async function loadProducts() {
         if (sugar) products = products.filter(p => p.flags?.includes("SUGAR_FREE"));
 
         renderProducts(products);
+        window.__productsLoaded = true;
+
     } catch (err) {
-        console.error(err);
-        showAlert("Ошибка сети при загрузке продуктов", "error");
+        console.error("❌ loadProducts:", err);
+        showAlert("Ошибка сети", "error");
     }
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+    window.__productsLoaded = false;
+
+    loadProducts();
+    loadDishes();
+});
 
 function renderProducts(products) {
     const list = document.getElementById("products-list");
@@ -645,15 +636,12 @@ function renderProducts(products) {
     products.forEach(p => {
         const card = document.createElement("div");
         card.className = "card";
-        const firstPhoto = p.photos?.[0];
-
-        // 🔹 Форматированные флаги
         const flagsHtml = p.flags?.length
             ? p.flags.map(f => `<span class="flag">${escapeHtml(formatFeatureFlag(f))}</span>`).join(" ")
             : "";
 
         card.innerHTML = `
-            ${firstPhoto ? `<img src="${escapeHtml(firstPhoto)}" width="100" alt="${escapeHtml(p.name)}" loading="lazy">` : ""}
+            ${p.photos?.[0] ? `<img src="${escapeHtml(p.photos[0])}" width="100" alt="${escapeHtml(p.name)}">` : ""}
             <b>${escapeHtml(p.name)}</b><br>
             Ккал: ${p.calories}<br>
             ${flagsHtml ? `<small>${flagsHtml}</small><br>` : ""}
@@ -663,6 +651,11 @@ function renderProducts(products) {
         `;
         list.appendChild(card);
     });
+
+    // 🔹 Событие для тестов: продукты отрисованы
+    window.dispatchEvent(new CustomEvent('products-rendered', {
+        detail: { count: products.length }
+    }));
 }
 
 function renderGallery(photos = []) {

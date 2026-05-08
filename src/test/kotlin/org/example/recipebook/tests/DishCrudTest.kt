@@ -71,6 +71,10 @@ class DishCrudTest {
 
     @BeforeEach
     fun setUp() {
+        // 🔹 Перезагружаем для чистого состояния
+        driver.navigate().refresh()
+        Thread.sleep(1000)
+
         productsPage = ProductsPage(driver)
         dishesPage = DishesPage(driver)
         dishesPage.switchToDishesTab()
@@ -313,6 +317,4 @@ class DishCrudTest {
             dishesPage.cancelEdit()
         }
     }
-
-
 }

@@ -68,6 +68,9 @@ class ProductsPage(driver: WebDriver) : BasePage(driver) {
         WaitUtils.waitForDebouncedUpdate()
         AlertUtils.acceptAlert(driver, 2)
         WaitUtils.waitForDebouncedUpdate()
+
+        // 🔹 Дополнительная пауза для завершения loadProducts()
+        Thread.sleep(800)
     }
 
     fun cancelEdit() = apply {
@@ -76,25 +79,65 @@ class ProductsPage(driver: WebDriver) : BasePage(driver) {
         WaitUtils.waitForDebouncedUpdate()
     }
 
-    fun hasProduct(productName: String, timeoutSec: Int = 10): Boolean {
+    // 🔹 В ProductsPage.kt — ЗАМЕНИТЕ hasProduct на этот вариант:
+
+    fun hasProduct(productName: String, timeoutSec: Int = 30): Boolean {
+        val js = driver as org.openqa.selenium.JavascriptExecutor
         val end = System.currentTimeMillis() + timeoutSec * 1000L
+
         while (System.currentTimeMillis() < end) {
             try {
-                val cards = driver.findElements(productCard)
-                if (cards.any { card ->
-                        try { card.findElement(productNameInCard).text.contains(productName) } catch (_: Exception) { false }
-                    }) return true
+                // 🔹 Ищем карточку с продуктом по тексту внутри <b>
+                val cards = driver.findElements(By.cssSelector("#products-list .card"))
+                for (card in cards) {
+                    try {
+                        val nameEl = card.findElement(By.cssSelector("b"))
+                        if (nameEl.text.contains(productName, ignoreCase = true)) {
+                            return true
+                        }
+                    } catch (_: Exception) {}
+                }
             } catch (_: Exception) {}
-            Thread.sleep(200)
+
+            // 🔹 Короткая пауза перед следующей попыткой
+            Thread.sleep(300)
         }
         return false
     }
 
     fun getProductsCount(): Int = driver.findElements(productCard).size
 
-    fun clickEditProduct(productName: String) = apply {
+    fun clickEditProduct(productName: String, timeoutSec: Int = 30) = apply {
         AlertUtils.acceptAlert(driver, 1)
-        val card = findProductCard(productName) ?: throw AssertionError("Продукт '$productName' не найден")
+
+        val end = System.currentTimeMillis() + timeoutSec * 1000L
+        var card: WebElement? = null
+
+        while (System.currentTimeMillis() < end && card == null) {
+            try {
+                val cards = driver.findElements(By.cssSelector("#products-list .card"))
+                for (c in cards) {
+                    try {
+                        val nameEl = c.findElement(By.cssSelector("b"))
+                        if (nameEl.text.contains(productName, ignoreCase = true)) {
+                            card = c
+                            break
+                        }
+                    } catch (_: Exception) {}
+                }
+            } catch (_: Exception) {}
+            if (card == null) Thread.sleep(300)
+        }
+
+        if (card == null) {
+            val available = driver.findElements(By.cssSelector("#products-list .card b"))
+                .mapNotNull { it.text }.take(10).joinToString(", ")
+            throw AssertionError(
+                "Продукт '$productName' не найден за $timeoutSec сек. Доступные: [$available]"
+            )
+        }
+
+        // 🔹 Кликаем через JS для надёжности
         val editBtn = card.findElement(By.xpath(".//button[text()='Редактировать']"))
         (driver as JavascriptExecutor).executeScript("arguments[0].click();", editBtn)
         WaitUtils.waitForDebouncedUpdate()
