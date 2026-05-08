@@ -63,8 +63,8 @@ class DishControllerApiTest : SharedTestContainers() {
             proteins = proteins,
             fats = fats,
             carbohydrates = carbs,
-            category = org.example.recipebook.core.database.entity.Category.MEAT,
-            cookingRequirement = org.example.recipebook.core.database.entity.CookingRequirement.READY_TO_EAT,
+            category = Category.MEAT,
+            cookingRequirement = CookingRequirement.READY_TO_EAT,
             flags = emptySet(),
             composition = null,
             photos = emptyList()
