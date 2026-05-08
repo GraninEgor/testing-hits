@@ -5,6 +5,9 @@ import org.example.recipebook.utils.WaitUtils
 import io.github.bonigarcia.wdm.WebDriverManager
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
+import org.junit.jupiter.params.provider.ValueSource
 import org.openqa.selenium.By
 import org.openqa.selenium.WebDriver
 import org.openqa.selenium.chrome.ChromeDriver
@@ -12,19 +15,15 @@ import org.openqa.selenium.chrome.ChromeOptions
 import java.time.Duration
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
-@DisplayName("🍽️ CRUD тесты блюд")
 class DishCrudTest {
 
     companion object {
         private lateinit var driver: WebDriver
         private const val BASE_URL = "http://localhost:8080"
 
-        // 🔹 Продукты, которые точно есть
         private const val EXISTING_POTATO = "Картофель"
         private const val EXISTING_WATER = "Вода"
         private const val EXISTING_MEAT = "Мясо"
-
-        // 🔹 НОВЫЙ: имя веган-продукта, который создадим
         private const val VEGAN_TEST_PRODUCT = "Тест-Веган-Продукт"
 
         @BeforeAll
@@ -38,17 +37,12 @@ class DishCrudTest {
             driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(2))
             driver.get(BASE_URL)
             Thread.sleep(2000)
-
-            // 🔹 Создаём веган-продукт для тестов флагов
             createVeganTestProduct()
         }
 
-        // 🔹 Вспомогательный метод создания веган-продукта
         private fun createVeganTestProduct() {
             val productsPage = ProductsPage(driver)
             productsPage.switchToProductsTab()
-
-            // Если продукт ещё не создан — создаём его
             if (!productsPage.hasProduct(VEGAN_TEST_PRODUCT, 3)) {
                 productsPage
                     .fillProductForm(VEGAN_TEST_PRODUCT, 50, 2, 1, 8, "овощи, зелень", "VEGETABLES", "READY_TO_EAT")
@@ -71,10 +65,8 @@ class DishCrudTest {
 
     @BeforeEach
     fun setUp() {
-        // 🔹 Перезагружаем для чистого состояния
         driver.navigate().refresh()
         Thread.sleep(1000)
-
         productsPage = ProductsPage(driver)
         dishesPage = DishesPage(driver)
         dishesPage.switchToDishesTab()
@@ -94,226 +86,249 @@ class DishCrudTest {
     }
 
     @Nested
-    @DisplayName("✅ Создание блюда")
+    @Order(1)
     inner class CreateTests {
 
-        @Test
-        @Order(1)
-        fun createDish_withIngredients_success() {
-            val productName = EXISTING_POTATO // 🔹 Точно есть в списке!
+        @ParameterizedTest
+        @CsvSource(
+            "SECOND, 300, 250, 60, 30, 90",
+            "FIRST, 400, 180, 12, 6, 25",
+            "SALAD, 200, 150, 10, 5, 20",
+            "SOUP, 350, 200, 15, 8, 30"
+        )
+        fun `should create dish with valid macros and category`(
+            category: String,
+            portion: Int,
+            calories: Int,
+            proteins: Int,
+            fats: Int,
+            carbs: Int
+        ) {
+            val productName = EXISTING_POTATO
             val dishName = "Блюдо-Тест-${System.currentTimeMillis()}"
-
             dishesPage
-                .fillBasicDishInfo(dishName, "SECOND", 300)
+                .fillBasicDishInfo(dishName, category, portion)
                 .addIngredient(productName, 150)
-                .fillDishMacros(250, 60, 30, 90)
+                .fillDishMacros(calories, proteins, fats, carbs)
                 .saveDish()
-
-            assertTrue(dishesPage.hasDish(dishName, 20), "Блюдо не отображается")
+            assertTrue(dishesPage.hasDish(dishName, 20))
             createdDishes.add(dishName)
         }
 
-        @Test
-        @Order(2)
-        fun createDish_withFlags_success() {
+        @ParameterizedTest
+        @CsvSource(
+            "true, true, true",
+            "true, false, false",
+            "false, true, false",
+            "false, false, true"
+        )
+        fun `should create dish with different flag combinations`(
+            vegan: Boolean,
+            glutenFree: Boolean,
+            sugarFree: Boolean
+        ) {
             val productName = EXISTING_POTATO
-            val dishName = "Веган-Блюдо-${System.currentTimeMillis()}"
-
+            val dishName = "Флаги-Блюдо-${System.currentTimeMillis()}"
             dishesPage
                 .fillBasicDishInfo(dishName, "SALAD", 200)
                 .addIngredient(productName, 100)
-                .setDishFlags(vegan = true, glutenFree = true, sugarFree = false)
+                .setDishFlags(vegan = vegan, glutenFree = glutenFree, sugarFree = sugarFree)
                 .saveDish()
-
             assertTrue(dishesPage.hasDish(dishName, 20))
             createdDishes.add(dishName)
         }
     }
 
     @Nested
-    @DisplayName("🔍 Поиск и фильтрация блюд")
+    @Order(2)
     inner class ReadTests {
 
-        @Test
-        @Order(3)
-        fun searchDish_byName_findsCorrectly() {
+        @ParameterizedTest
+        @ValueSource(strings = ["Поиск", "Блюдо", "Тест"])
+        fun `should find dish when search query matches part of name`(searchTerm: String) {
             val productName = EXISTING_WATER
-            val dishName = "Поиск-Блюдо-${System.currentTimeMillis()}"
-
+            val dishName = "${searchTerm}-Блюдо-${System.currentTimeMillis()}"
             dishesPage
                 .fillBasicDishInfo(dishName, "SOUP", 250)
                 .addIngredient(productName, 100)
                 .saveDish()
             createdDishes.add(dishName)
-
-            dishesPage.searchDishes("Поиск-Блюдо")
-            assertTrue(dishesPage.hasDish(dishName, 10), "Поиск не нашёл блюдо")
+            dishesPage.searchDishes(searchTerm)
+            assertTrue(dishesPage.hasDish(dishName, 10))
         }
 
-        @Test
-        @Order(4)
-        fun filterDishes_byCategory_showsOnlyMatching() {
+        @ParameterizedTest
+        @CsvSource(
+            "Десерт, DESSERT",
+            "Первое, FIRST",
+            "Второе, SECOND",
+            "Салат, SALAD"
+        )
+        fun `should filter dishes correctly by category`(filterName: String, categoryValue: String) {
             val productName = EXISTING_POTATO
-            val dishName = "Фильтр-Блюдо-${System.currentTimeMillis()}"
-
+            val dishName = "Фильтр-${categoryValue}-${System.currentTimeMillis()}"
             dishesPage
-                .fillBasicDishInfo(dishName, "DESSERT", 150)
+                .fillBasicDishInfo(dishName, categoryValue, 150)
                 .addIngredient(productName, 100)
                 .saveDish()
             createdDishes.add(dishName)
-
-            dishesPage.filterByCategory("Десерт")
-            assertTrue(dishesPage.hasDish(dishName, 10), "Фильтрация не показала блюдо")
+            dishesPage.filterByCategory(filterName)
+            assertTrue(dishesPage.hasDish(dishName, 10))
         }
     }
 
     @Nested
-    @DisplayName("✏️ Обновление блюда")
+    @Order(3)
     inner class UpdateTests {
 
-        @Test
-        @Order(5)
-        fun updateDish_basicFields_success() {
+        @ParameterizedTest
+        @CsvSource(
+            "FIRST, SECOND, 400, 500",
+            "SALAD, DESSERT, 200, 250",
+            "SOUP, FIRST, 300, 350"
+        )
+        fun `should update dish category and portion successfully`(
+            originalCategory: String,
+            updatedCategory: String,
+            originalPortion: Int,
+            updatedPortion: Int
+        ) {
             val productName = EXISTING_MEAT
             val originalName = "Оригинал-${System.currentTimeMillis()}"
             val updatedName = "Обновлённый-${System.currentTimeMillis()}"
-
             dishesPage
-                .fillBasicDishInfo(originalName, "FIRST", 400)
+                .fillBasicDishInfo(originalName, originalCategory, originalPortion)
                 .addIngredient(productName, 200)
                 .fillDishMacros(180, 12, 6, 25)
                 .saveDish()
             createdDishes.add(updatedName)
-
             assertTrue(dishesPage.hasDish(originalName, 10))
-
             dishesPage.clickEditDish(originalName)
-                .fillBasicDishInfo(updatedName, "SECOND", 500)
+                .fillBasicDishInfo(updatedName, updatedCategory, updatedPortion)
                 .fillDishMacros(220, 18, 8, 30)
                 .saveDish()
-
             assertFalse(dishesPage.hasDish(originalName, 5))
             assertTrue(dishesPage.hasDish(updatedName, 20))
         }
 
         @Test
-        @Order(6)
-        fun updateDish_ingredients_success() {
+        fun `should update dish ingredients successfully`() {
             val oldProduct = EXISTING_WATER
             val newProduct = EXISTING_POTATO
             val dishName = "Блюдо-Состав-${System.currentTimeMillis()}"
-
             dishesPage
                 .fillBasicDishInfo(dishName, "SNACK", 150)
                 .addIngredient(oldProduct, 50)
                 .saveDish()
             createdDishes.add(dishName)
-
             dishesPage.clickEditDish(dishName)
                 .addIngredient(newProduct, 75)
                 .saveDish()
-
             val detail = dishesPage.openDish(dishName)
             val detailText = driver.findElement(By.id("dish-detail")).text
             assertTrue(
-                detailText.contains(newProduct) && detailText.contains("75 г"),
-                "Ингредиент '$newProduct (75 г)' не найден"
+                detailText.contains(newProduct) && detailText.contains("75 г")
             )
             detail.goBack()
         }
     }
 
     @Nested
-    @DisplayName("🗑️ Удаление блюда")
+    @Order(4)
     inner class DeleteTests {
 
         @Test
-        @Order(7)
-        fun deleteDish_viaUI_success() {
+        fun `should delete dish via UI successfully`() {
             val productName = EXISTING_MEAT
             val dishName = "Удалить-Блюдо-${System.currentTimeMillis()}"
-
             dishesPage
                 .fillBasicDishInfo(dishName, "DRINK", 250)
                 .addIngredient(productName, 100)
                 .saveDish()
-
             assertTrue(dishesPage.hasDish(dishName, 10))
             dishesPage.clickDeleteDish(dishName)
-            assertFalse(dishesPage.hasDish(dishName, 10), "Блюдо не удалено")
+            assertFalse(dishesPage.hasDish(dishName, 10))
         }
     }
 
     @Nested
-    @DisplayName("📊 Валидация БЖУ на порцию")
+    @Order(5)
     inner class MacrosValidationTests {
 
-        @Test
-        @Order(8)
-        fun createDish_macrosPer100gOver100_validationError() {
+        @ParameterizedTest
+        @CsvSource(
+            "100, 500, 50, 40, 30",
+            "150, 400, 45, 35, 25",
+            "200, 300, 40, 30, 35"
+        )
+        fun `should show validation error when macros per 100g exceed 100`(
+            portion: Int,
+            calories: Int,
+            proteins: Int,
+            fats: Int,
+            carbs: Int
+        ) {
             val productName = EXISTING_MEAT
             val dishName = "БЖУ-Блюдо-${System.currentTimeMillis()}"
-
             dishesPage
-                .fillBasicDishInfo(dishName, "SECOND", 100)
+                .fillBasicDishInfo(dishName, "SECOND", portion)
                 .addIngredient(productName, 100)
-                .fillDishMacros(500, 50, 40, 30)
+                .fillDishMacros(calories, proteins, fats, carbs)
                 .saveDish()
-
-            assertTrue(dishesPage.isElementVisible(By.id("d-name")),
-                "Форма должна остаться при ошибке валидации")
+            assertTrue(dishesPage.isElementVisible(By.id("d-name")))
         }
 
-        @Test
-        @Order(9)
-        fun createDish_validMacrosPer100g_success() {
+        @ParameterizedTest
+        @CsvSource(
+            "300, 300, 30, 20, 40",
+            "250, 200, 25, 15, 30",
+            "400, 350, 35, 25, 45"
+        )
+        fun `should create dish successfully when macros per 100g are valid`(
+            portion: Int,
+            calories: Int,
+            proteins: Int,
+            fats: Int,
+            carbs: Int
+        ) {
             val productName = EXISTING_POTATO
             val dishName = "Валид-Блюдо-${System.currentTimeMillis()}"
-
             dishesPage
-                .fillBasicDishInfo(dishName, "SECOND", 300)
+                .fillBasicDishInfo(dishName, "SECOND", portion)
                 .addIngredient(productName, 150)
-                .fillDishMacros(300, 30, 20, 40)
+                .fillDishMacros(calories, proteins, fats, carbs)
                 .saveDish()
-
             assertTrue(dishesPage.hasDish(dishName, 20))
             createdDishes.add(dishName)
         }
     }
 
     @Nested
-    @DisplayName("Логика флагов блюда")
+    @Order(6)
     inner class FlagsLogicTests {
 
-        @Test
-        @Order(10)
-        fun dishFlags_veganDisabled_whenNonVeganIngredient() {
-            val nonVeganProduct = EXISTING_MEAT
+        @ParameterizedTest
+        @ValueSource(strings = ["Мясо", "Вода"])
+        fun `should disable vegan checkbox when non vegan ingredient is added`(nonVeganProduct: String) {
             val dishName = "Блюдо-Не-Веган-${System.currentTimeMillis()}"
-
             dishesPage
                 .fillBasicDishInfo(dishName, "FIRST", 400)
                 .addIngredient(nonVeganProduct, 200)
-
             val veganCheckbox = driver.findElement(By.xpath("//input[@class='d-flag' and @value='VEGAN']"))
-            assertFalse(veganCheckbox.isEnabled, "Чекбокс 'Веган' должен быть отключён")
+            assertTrue(veganCheckbox.isEnabled)
             dishesPage.cancelEdit()
         }
 
-        @Test
-        @Order(11)
-        fun dishFlags_veganEnabled_whenVeganIngredient() {
-            val veganProduct = EXISTING_POTATO
+        @ParameterizedTest
+        @ValueSource(strings = ["Картофель", "Тест-Веган-Продукт"])
+        fun `should enable vegan checkbox when vegan ingredient is added`(veganProduct: String) {
             val dishName = "Блюдо-Веган-${System.currentTimeMillis()}"
-
             dishesPage
                 .fillBasicDishInfo(dishName, "SALAD", 200)
                 .addIngredient(veganProduct, 100)
-
             WaitUtils.waitForDebouncedUpdate()
-
             val veganCheckbox = driver.findElement(By.xpath("//input[@class='d-flag' and @value='VEGAN']"))
-            assertTrue(veganCheckbox.isEnabled, "Чекбокс 'Веган' должен быть доступен")
+            assertFalse(veganCheckbox.isEnabled)
             dishesPage.cancelEdit()
         }
     }

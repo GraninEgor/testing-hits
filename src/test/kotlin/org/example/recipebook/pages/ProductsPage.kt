@@ -68,8 +68,6 @@ class ProductsPage(driver: WebDriver) : BasePage(driver) {
         WaitUtils.waitForDebouncedUpdate()
         AlertUtils.acceptAlert(driver, 2)
         WaitUtils.waitForDebouncedUpdate()
-
-        // 🔹 Дополнительная пауза для завершения loadProducts()
         Thread.sleep(800)
     }
 
@@ -99,7 +97,6 @@ class ProductsPage(driver: WebDriver) : BasePage(driver) {
                 }
             } catch (_: Exception) {}
 
-            // 🔹 Короткая пауза перед следующей попыткой
             Thread.sleep(300)
         }
         return false
@@ -137,7 +134,6 @@ class ProductsPage(driver: WebDriver) : BasePage(driver) {
             )
         }
 
-        // 🔹 Кликаем через JS для надёжности
         val editBtn = card.findElement(By.xpath(".//button[text()='Редактировать']"))
         (driver as JavascriptExecutor).executeScript("arguments[0].click();", editBtn)
         WaitUtils.waitForDebouncedUpdate()
@@ -149,12 +145,6 @@ class ProductsPage(driver: WebDriver) : BasePage(driver) {
         AlertUtils.acceptConfirm(driver, 5)
         AlertUtils.acceptAlert(driver, 3)
         WaitUtils.waitForDebouncedUpdate()
-    }
-
-    fun openProduct(productName: String): ProductDetailPage {
-        val card = findProductCard(productName) ?: throw AssertionError("Продукт '$productName' не найден")
-        card.findElement(By.xpath(".//button[text()='Открыть']")).click()
-        return ProductDetailPage(driver)
     }
 
     private fun findProductCard(productName: String): WebElement? {

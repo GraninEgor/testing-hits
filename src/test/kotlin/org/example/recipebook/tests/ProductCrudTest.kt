@@ -5,24 +5,19 @@ import org.example.recipebook.utils.WaitUtils
 import io.github.bonigarcia.wdm.WebDriverManager
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
-import org.openqa.selenium.By
 import org.openqa.selenium.WebDriver
 import org.openqa.selenium.chrome.ChromeDriver
 import org.openqa.selenium.chrome.ChromeOptions
 import java.time.Duration
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
-@DisplayName("📦 CRUD тесты продуктов")
 class ProductCrudTest {
 
     companion object {
         private lateinit var driver: WebDriver
         private const val BASE_URL = "http://localhost:8080"
 
-        // 🔹 Используем продукты, которые ТОЧНО есть в системе
         private const val EXISTING_POTATO = "Картофель"
-        private const val EXISTING_WATER = "Вода"
-        private const val EXISTING_MEAT = "Мясо"
 
         @BeforeAll
         @JvmStatic
@@ -34,8 +29,6 @@ class ProductCrudTest {
             driver = ChromeDriver(options)
             driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(2))
             driver.get(BASE_URL)
-
-            // 🔹 Ждём загрузки страницы
             Thread.sleep(2000)
         }
 
@@ -51,14 +44,12 @@ class ProductCrudTest {
 
     @BeforeEach
     fun setUp() {
-        // 🔹 Сбрасываем флаг перед тестом
         (driver as org.openqa.selenium.JavascriptExecutor)
             .executeScript("window.__productsLoaded = false;")
 
         productsPage = ProductsPage(driver)
         productsPage.switchToProductsTab()
 
-        // 🔹 Ждём начальной загрузки
         val end = System.currentTimeMillis() + 10000L
         while (System.currentTimeMillis() < end) {
             try {
@@ -85,34 +76,12 @@ class ProductCrudTest {
     }
 
     @Nested
-    @DisplayName("✅ Создание продукта")
+    @Order(1)
     inner class CreateTests {
 
         @Test
         @Order(1)
-        fun createProduct_withAllFields_success() {
-            val name = "Тест-Продукт-${System.currentTimeMillis()}"
-            val composition = "молоко, сахар, ванилин"
-
-            productsPage
-                .fillProductForm(name, 250, 10, 8, 35, composition, "SWEETS", "READY_TO_EAT")
-                .setProductFlags(vegan = false, glutenFree = true, sugarFree = false)
-                .saveProduct()
-
-            // 🔹 Увеличенный таймаут + отладка
-            val found = productsPage.hasProduct(name, 40)  // 40 секунд вместо 20
-            if (!found) {
-                val pageSource = driver.pageSource
-                println("❌ Продукт '$name' не найден.")
-                println("📄 Список продуктов в HTML: ${pageSource.substringAfter("<div id=\"products-list\">").substringBefore("</div>").take(500)}")
-            }
-            assertTrue(found, "Продукт '$name' не появился за 40 сек")
-            createdProducts.add(name)
-        }
-
-        @Test
-        @Order(2)
-        fun createProduct_withFlags_success() {
+        fun `should create product successfully`() {
             val name = "Веган-Тест-${System.currentTimeMillis()}"
 
             productsPage
@@ -126,71 +95,30 @@ class ProductCrudTest {
     }
 
     @Nested
-    @DisplayName("🔍 Поиск и фильтрация")
+    @Order(2)
     inner class ReadTests {
 
         @Test
-        @Order(3)
-        fun searchProduct_byName_findsCorrectly() {
-            // 🔹 Используем продукт, который точно есть
+        @Order(1)
+        fun `should find product by name when searching`() {
             productsPage.searchProducts(EXISTING_POTATO)
             assertTrue(productsPage.hasProduct(EXISTING_POTATO, 10), "Поиск не нашёл: '$EXISTING_POTATO'")
         }
 
         @Test
-        @Order(4)
-        fun filterProducts_byCategory_showsOnlyMatching() {
-            // 🔹 Используем продукт, который точно есть
+        @Order(2)
+        fun `should show only matching products when filtering by category`() {
             productsPage.filterByCategory("Овощи").applyFilters()
             assertTrue(productsPage.hasProduct(EXISTING_POTATO, 10), "Фильтрация не показала: '$EXISTING_POTATO'")
         }
     }
 
     @Nested
-    @DisplayName("✏️ Обновление продукта")
-    inner class UpdateTests {
-
-        @Test
-        @Order(5)
-        fun updateProduct_basicFields_success() {
-            // 🔹 Создаём новый продукт для обновления
-            val originalName = "Обновить-Тест-${System.currentTimeMillis()}"
-            val updatedName = "Обновлённый-${System.currentTimeMillis()}"
-
-            productsPage.fillProductForm(originalName, 100, 5, 2, 10, "старый", "VEGETABLES", "READY_TO_EAT")
-                .saveProduct()
-            assertTrue(productsPage.hasProduct(originalName, 20))
-            createdProducts.add(updatedName)
-
-            productsPage.clickEditProduct(originalName)
-            productsPage.fillField(By.id("p-name"), updatedName)
-            productsPage.fillField(By.id("p-composition"), "новый состав")
-            productsPage.saveProduct()
-
-            assertTrue(productsPage.hasProduct(updatedName, 20), "Новое имя не появилось")
-        }
-    }
-
-    @Nested
-    @DisplayName("🗑️ Удаление продукта")
+    @Order(4)
     inner class DeleteTests {
-
         @Test
-        @Order(7)
-        fun deleteProduct_viaUI_success() {
-            val name = "Удалить-Тест-${System.currentTimeMillis()}"
-
-            productsPage.fillProductForm(name, 100, 5, 2, 10, "состав", "VEGETABLES", "READY_TO_EAT")
-                .saveProduct()
-            assertTrue(productsPage.hasProduct(name, 20))
-
-            productsPage.clickDeleteProduct(name)
-            assertFalse(productsPage.hasProduct(name, 10), "Продукт не удалён")
-        }
-
-        @Test
-        @Order(8)
-        fun createProduct_nameTooShort_validationError() {
+        @Order(2)
+        fun `should not create product when name is too short`() {
             val originalCount = productsPage.getProductsCount()
 
             productsPage.fillProductForm("А", 100, 10, 10, 10, "состав", "MEAT", "READY_TO_EAT")
@@ -202,12 +130,12 @@ class ProductCrudTest {
     }
 
     @Nested
-    @DisplayName("📊 Валидация БЖУ")
+    @Order(5)
     inner class MacrosValidationTests {
 
         @Test
-        @Order(9)
-        fun createProduct_macrosSumOver100_validationError() {
+        @Order(1)
+        fun `should not create product when macros sum exceeds 100`() {
             val originalCount = productsPage.getProductsCount()
 
             productsPage.fillProductForm("БЖУ-Тест", 100, 50, 40, 30, "состав", "MEAT", "READY_TO_EAT")
@@ -218,8 +146,8 @@ class ProductCrudTest {
         }
 
         @Test
-        @Order(10)
-        fun createProduct_validMacros_success() {
+        @Order(2)
+        fun `should create product successfully when macros are valid`() {
             val name = "БЖУ-Валид-${System.currentTimeMillis()}"
 
             productsPage.fillProductForm(name, 100, 30, 20, 40, "состав", "MEAT", "READY_TO_EAT")

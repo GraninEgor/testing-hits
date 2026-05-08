@@ -9,20 +9,9 @@ class ProductDetailPage(driver: WebDriver) : BasePage(driver) {
     private val detailName = By.cssSelector("#product-detail h2")
     private val detailComposition = By.xpath("//p[b[text()='Состав:']]")
 
-    fun getProductName(): String = getText(detailName)
-
     fun getProductComposition(): String? =
         if (isElementVisible(detailComposition)) {
             getText(detailComposition).replace("Состав:", "").trim()
         } else null
 
-    fun goBack(): ProductsPage {
-        click(backBtn)
-        return ProductsPage(driver)
-    }
-
-    fun isCompositionDisplayed(expected: String): Boolean {
-        val actual = getProductComposition()
-        return actual != null && actual.contains(expected)
-    }
 }

@@ -60,8 +60,6 @@ abstract class BasePage(protected val driver: WebDriver) {
         }
     }
 
-    fun findElements(locator: By): List<WebElement> = try { driver.findElements(locator) } catch (_: Exception) { emptyList() }
-
     fun switchToProductsTab() {
         click(By.xpath("//button[text()='Продукты']"))
         WaitUtils.waitForTabVisible(driver, "products-section")
